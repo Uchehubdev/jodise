@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Settings | Seller Central{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 flex">
+
+    <!-- 🟢 Sidebar Navigation -->
+    <aside class="w-64 bg-white border-r border-gray-200 hidden md:block">
+        <div class="p-6">
+            <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                📦 Seller Hub
+            </h2>
+            <p class="text-xs text-gray-500 mt-1">{{ seller.store_name }}</p>
+        </div>
+        <nav class="mt-4 px-4 space-y-1">
+            <a href="{% url 'seller_dashboard' %}"
+                class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+                <span class="mr-3">📊</span> Dashboard
+            </a>
+            <a href="{% url 'seller_settings' %}"
+                class="flex items-center px-4 py-3 bg-indigo-50 text-indigo-700 rounded-lg font-medium">
+                <span class="mr-3">⚙️</span> Settings
+            </a>
+            <!-- Other Links -->
+            <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+                <span class="mr-3">🚪</span> Logout
+            </a>
+        </nav>
+    </aside>
+
+    <!-- 🟢 Main Content -->
+    <main class="flex-1 p-8">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Store Settings</h1>
+            <p class="text-gray-500 mb-8">Manage your public profile, branding, and payout details.</p>
+
+            <form method="POST" enctype="multipart/form-data" class="space-y-8">
+                {% csrf_token %}
+
+                <!-- 1. Store Identity -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Store Identity</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
+                            {{ form.store_name }}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Support Phone</label>
+                            {{ form.support_phone }}
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            {{ form.description }}
+                            <p class="text-xs text-gray-400 mt-1">Tell customers about your brand.</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Support Email</label>
+                            {{ form.support_email }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Branding -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Branding (Logo & Banner)</h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- Logo -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Store Logo</label>
+                            <div class="flex items-center gap-4">
+                                {% if seller.store_logo %}
+                                <img src="{{ seller.store_logo.url }}"
+                                    class="w-16 h-16 rounded-full border shadow-sm object-cover">
+                                {% else %}
+                                <div
+                                    class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-xs">
+                                    No Logo</div>
+                                {% endif %}
+                                {{ form.store_logo }}
+                            </div>
+                        </div>
+
+                        <!-- Banner -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Store Banner</label>
+                            <div class="space-y-2">
+                                {% if seller.store_banner %}
+                                <img src="{{ seller.store_banner.url }}"
+                                    class="w-full h-24 rounded-lg border shadow-sm object-cover">
+                                {% endif %}
+                                {{ form.store_banner }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Bank Payout Details -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Bank Details (For Payouts)</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                            {{ form.bank_name }}
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                            {{ form.bank_account_number }}
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                            {{ form.bank_account_name }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-4">
+                    <a href="{% url 'seller_dashboard' %}"
+                        class="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-bold hover:bg-gray-200">Cancel</a>
+                    <button type="submit"
+                        class="px-6 py-3 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 shadow-lg transition transform hover:scale-105">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>
+{% endblock %}

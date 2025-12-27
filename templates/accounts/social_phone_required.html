@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Add Phone Number | Jodise{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-white rounded-2xl shadow-md p-6 mt-10">
+  <h2 class="text-2xl font-bold text-center mb-4 text-indigo-600">Complete Signup</h2>
+  <p class="text-gray-600 text-center mb-4">
+    To secure your account, please add and verify your phone number.
+  </p>
+
+  <form method="POST">
+    {% csrf_token %}
+    <label class="block text-gray-700 mb-1">Phone Number (International Format)</label>
+    <input type="text" name="phone" id="id_phone" placeholder="+2348012345678"
+           class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 mb-4">
+    <button type="submit"
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-semibold">
+      Continue
+    </button>
+  </form>
+</div>
+
+<!-- intl-tel-input -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.19/css/intlTelInput.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.19/js/intlTelInput.min.js"></script>
+<script>
+const input = document.querySelector("#id_phone");
+const iti = window.intlTelInput(input, {
+  initialCountry: "auto",
+  geoIpLookup: function(callback) {
+    fetch("https://ipapi.co/json")
+      .then(res => res.json())
+      .then(data => callback(data.country_code))
+      .catch(() => callback("ng"));
+  },
+  utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.19/js/utils.js"
+});
+
+document.querySelector("form").addEventListener("submit", function() {
+  input.value = iti.getNumber();
+});
+</script>
+{% endblock %}

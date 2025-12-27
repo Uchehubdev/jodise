@@ -1,0 +1,14 @@
+.env
+
+*.sqlite3
+
+__pycache__/
+
+*.log
+
+media/ 
+
+staticfiles/
+
+*.pem, *.key, 
+debug_user.py

@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Available Orders | Jodise Delivery{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-10 px-4">
+    <div class="max-w-5xl mx-auto">
+        <div class="flex items-center justify-between mb-8">
+            <h1 class="text-2xl font-bold text-gray-900">📦 Available Orders</h1>
+            <a href="{% url 'delivery_dashboard' %}" class="text-sm text-gray-600 hover:text-gray-900 font-medium">
+                &larr; Back to Dashboard
+            </a>
+        </div>
+
+        {% if orders %}
+        <div class="space-y-4">
+            {% for order in orders %}
+            <div
+                class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition duration-200">
+                <div class="flex flex-col md:flex-row justify-between md:items-center">
+                    <div class="space-y-2 mb-4 md:mb-0">
+                        <div class="flex items-center space-x-3">
+                            <span
+                                class="bg-green-100 text-green-800 text-xs font-bold px-2 py-0.5 rounded-full">NEW</span>
+                            <span class="text-sm text-gray-500">#{{ order.order_code }}</span>
+                            <span class="text-xs text-gray-400">• {{ order.created_at|timesince }} ago</span>
+                        </div>
+                        <div class="flex items-center text-gray-900 font-medium">
+                            <span class="mr-2">📍</span> {{ order.pickup_address|truncatechars:40 }}
+                            <span class="mx-2 text-gray-300">➜</span>
+                            <span class="mr-2">🏁</span> {{ order.delivery_address|truncatechars:40 }}
+                        </div>
+                        <div class="flex items-center space-x-6 text-sm text-gray-500 mt-2">
+                            <span>💰 Earn approx. ₦800</span>
+                            <span>📏 2.5 km est.</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <a href="{% url 'accept_order' order.id %}"
+                            class="block w-full md:w-auto text-center bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-8 rounded-lg shadow-md transition transform hover:-translate-y-0.5">
+                            Accept Order
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
+            <p class="text-gray-500 text-lg">No orders available nearby right now.</p>
+            <p class="text-gray-400 text-sm">Check back in a few minutes!</p>
+            <div class="mt-6">
+                <button onclick="location.reload()" class="text-yellow-600 font-medium hover:text-yellow-500">
+                    🔄 Refresh List
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

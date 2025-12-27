@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Become a Delivery Partner | Jodise Express{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-yellow-100">
+        <div class="text-center">
+            <h2 class="text-3xl font-extrabold text-gray-900">
+                Drive with <span class="text-yellow-500">Jodise</span>
+            </h2>
+            <p class="mt-2 text-sm text-gray-600">
+                Join our fleet, earn on your schedule, and deliver happiness.
+            </p>
+        </div>
+
+        <form class="mt-8 space-y-6" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded text-sm">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div class="rounded-md shadow-sm space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">First Name</label>
+                        {% render_field form.first_name class="mt-1 block w-full border-gray-300 rounded-md shadow-sm
+                        focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm p-2 bg-gray-50" %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Last Name</label>
+                        {% render_field form.last_name class="mt-1 block w-full border-gray-300 rounded-md shadow-sm
+                        focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm p-2 bg-gray-50" %}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Email Address</label>
+                    {% render_field form.email class="mt-1 block w-full border-gray-300 rounded-md shadow-sm
+                    focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm p-2 bg-gray-50" %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Phone Number</label>
+                    {% render_field form.phone class="mt-1 block w-full border-gray-300 rounded-md shadow-sm
+                    focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm p-2 bg-gray-50" %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Password</label>
+                    {% render_field form.password class="mt-1 block w-full border-gray-300 rounded-md shadow-sm
+                    focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm p-2 bg-gray-50" %}
+                </div>
+
+                <div class="border-t border-gray-200 pt-4">
+                    <h3 class="text-sm font-bold text-gray-900 mb-3">Vehicle & Docs</h3>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Vehicle Type</label>
+                        {% render_field form.vehicle_type class="mt-1 block w-full border-gray-300 rounded-md shadow-sm
+                        focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm p-2 bg-gray-50" %}
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="block text-sm font-medium text-gray-700">License Number</label>
+                        {% render_field form.license_number class="mt-1 block w-full border-gray-300 rounded-md
+                        shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm p-2 bg-gray-50" %}
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="block text-sm font-medium text-gray-700">ID Document</label>
+                        {% render_field form.id_document class="mt-1 block w-full text-sm text-gray-500 file:mr-4
+                        file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold
+                        file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100" %}
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="block text-sm font-medium text-gray-700">Profile Photo</label>
+                        {% render_field form.profile_photo class="mt-1 block w-full text-sm text-gray-500 file:mr-4
+                        file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold
+                        file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100" %}
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <button type="submit"
+                    class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 shadow-md transform transition hover:-translate-y-0.5">
+                    Start Earning
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center mt-4">
+            <a href="{% url 'delivery_login' %}" class="text-sm text-yellow-600 hover:text-yellow-500 font-medium">
+                Already have an account? Log in here
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

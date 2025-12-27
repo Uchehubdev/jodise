@@ -1,0 +1,281 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{% block title %}Jodise Marketplace{% endblock %}</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/alpinejs" defer></script>
+
+  <style>
+    :root {
+      --jodise-gold: #FFD700;
+      --jodise-deep-gold: #E6B800;
+      --jodise-deal: #f9ce34;
+      /* Temu Yellow/Orange vibe */
+      --jodise-accent: #fb7701;
+      /* Temu Orange */
+      --jodise-dark: #1A1A1A;
+      --jodise-bg: #f6f6f6;
+      /* Light gray background like Temu */
+    }
+
+    .gold-gradient {
+      background: linear-gradient(135deg, var(--jodise-gold), var(--jodise-deep-gold));
+    }
+
+    .deal-gradient {
+      background: linear-gradient(to right, #fb7701, #f9ce34);
+    }
+
+    .gold-text {
+      color: var(--jodise-deep-gold);
+    }
+
+    .text-deal {
+      color: var(--jodise-accent);
+    }
+
+    .gold-hover:hover {
+      color: var(--jodise-gold);
+    }
+
+    /* Mobile sticky bottom nav adjustments */
+    body {
+      padding-bottom: 60px;
+    }
+  </style>
+</head>
+
+<body class="bg-[color:var(--jodise-bg)] text-gray-900 min-h-screen flex flex-col font-sans">
+
+  <!-- 📣 PROMO BANNER -->
+  <div class="bg-black text-white text-center text-xs font-bold py-1 px-4 hidden md:block">
+    🚀 FREE SHIPPING on all orders over {{ currency_symbol }}15,000! <span class="text-yellow-400">Shop Now</span>
+  </div>
+
+  <!-- 🖥️ DESKTOP HEADER -->
+  <header class="hidden md:block bg-white shadow-sm border-b border-yellow-100">
+    <div class="max-w-7xl mx-auto flex items-center justify-between px-6 py-3">
+      <!-- Logo -->
+      <a href="/" class="text-3xl font-extrabold tracking-wide gold-text">Jodise</a>
+
+      <!-- Search -->
+      <form method="get" action="{% url 'search_products' %}"
+        class="flex w-1/2 bg-yellow-50 rounded-full overflow-hidden border border-yellow-200 focus-within:ring-2 focus-within:ring-yellow-400">
+        <input type="text" name="q" placeholder="Search for products, stores, or deals..."
+          class="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none text-gray-700">
+        <button type="submit"
+          class="gold-gradient text-white px-5 font-semibold hover:opacity-90 transition">Search</button>
+      </form>
+
+      <!-- Quick Icons -->
+      <div class="flex items-center space-x-5 text-gray-700">
+        <a href="{% url 'view_cart' %}" class="gold-hover">🛒 Cart</a>
+        <a href="{% url 'view_wishlist' %}" class="gold-hover">❤️ Wishlist</a>
+        {% if user.is_authenticated %}
+        <a href="{% url 'seller_dashboard' %}" class="gold-hover">🛍️ Seller</a>
+        <a href="{% url 'logout' %}" class="text-red-600 hover:text-red-700">Logout</a>
+        {% else %}
+        <a href="{% url 'login' %}"
+          class="gold-gradient text-white px-4 py-1 rounded-lg font-semibold hover:opacity-90">Login</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Category Bar -->
+    <div class="bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 text-white text-sm font-medium shadow-sm">
+      <div class="max-w-7xl mx-auto flex space-x-6 px-6 py-2 overflow-x-auto">
+        <a href="#" class="hover:text-gray-900 whitespace-nowrap">All</a>
+        <a href="#" class="hover:text-gray-900 whitespace-nowrap">Electronics</a>
+        <a href="#" class="hover:text-gray-900 whitespace-nowrap">Fashion</a>
+        <a href="#" class="hover:text-gray-900 whitespace-nowrap">Home & Kitchen</a>
+        <a href="#" class="hover:text-gray-900 whitespace-nowrap">Beauty</a>
+        <a href="#" class="hover:text-gray-900 whitespace-nowrap">Farm</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 📱 MOBILE HEADER -->
+  <header class="md:hidden gold-gradient text-white sticky top-0 z-50 shadow-lg">
+    <div class="flex items-center justify-between px-4 py-3">
+      <h1 class="text-xl font-bold">Jodise</h1>
+      <div class="flex space-x-4 text-lg">
+        <a href="{% url 'view_cart' %}">🛒</a>
+        <a href="{% url 'view_wishlist' %}">❤️</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ⚠️ FLASH MESSAGES -->
+  {% if messages %}
+  <div class="container mx-auto px-4 mt-2">
+    {% for message in messages %}
+    <div class="p-2 mb-2 text-sm rounded
+        {% if message.tags == 'success' %}bg-green-100 text-green-800
+        {% elif message.tags == 'error' %}bg-red-100 text-red-700
+        {% else %}bg-yellow-50 text-gray-700{% endif %}">
+      {{ message }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1">{% block content %}{% endblock %}</main>
+
+  <!-- 📱 MOBILE BOTTOM NAV -->
+  <nav
+    class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-yellow-100 shadow-md flex justify-around text-gray-700 text-xs py-2">
+    <a href="/" class="flex flex-col items-center hover:text-yellow-500">
+      <span>🏠</span><span>Home</span>
+    </a>
+    <a href="{% url 'search_products' %}" class="flex flex-col items-center hover:text-yellow-500">
+      <span>🔍</span><span>Search</span>
+    </a>
+    <a href="{% url 'view_cart' %}" class="flex flex-col items-center hover:text-yellow-500">
+      <span>🛒</span><span>Cart</span>
+    </a>
+    {% if user.is_authenticated %}
+    <a href="{% url 'seller_dashboard' %}" class="flex flex-col items-center hover:text-yellow-500">
+      <span>🛍️</span><span>Seller</span>
+    </a>
+    {% else %}
+    <a href="{% url 'login' %}" class="flex flex-col items-center hover:text-yellow-500">
+      <span>👤</span><span>Login</span>
+    </a>
+    {% endif %}
+  </nav>
+
+  <!-- ⚙️ FOOTER (GOLD STYLE) -->
+
+  <!-- ⚙️ JODISE GOLD FOOTER - HIGH CONTRAST EDITION -->
+  <footer class="relative text-sm mt-10">
+    <!-- Gold Top Border -->
+    <div class="h-1 w-full bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-600"></div>
+
+    <div class="bg-[#111111] text-gray-300 pt-12 pb-10">
+      <div class="max-w-7xl mx-auto px-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-10 text-left">
+
+        <!-- Column 1 -->
+        <div>
+          <h4 class="text-yellow-400 font-semibold mb-3 text-base uppercase tracking-wide">Company</h4>
+          <ul class="space-y-2 text-gray-300">
+            <li><a href="#" class="hover:text-yellow-300 transition">About Jodise</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Our Vision</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Press & Media</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Careers</a></li>
+          </ul>
+        </div>
+
+        <!-- Column 2 -->
+        <div>
+          <h4 class="text-yellow-400 font-semibold mb-3 text-base uppercase tracking-wide">Support</h4>
+          <ul class="space-y-2 text-gray-300">
+            <li><a href="#" class="hover:text-yellow-300 transition">Help Center</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Returns & Refunds</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Track Order</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Shipping Info</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Report an Issue</a></li>
+          </ul>
+        </div>
+
+        <!-- Column 3 -->
+        <div>
+          <h4 class="text-yellow-400 font-semibold mb-3 text-base uppercase tracking-wide">Policies</h4>
+          <ul class="space-y-2 text-gray-300">
+            <li><a href="#" class="hover:text-yellow-300 transition">Terms of Use</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Privacy Policy</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Seller Policy</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Payment Security</a></li>
+          </ul>
+        </div>
+
+        <!-- Column 4 -->
+        <div>
+          <h4 class="text-yellow-400 font-semibold mb-3 text-base uppercase tracking-wide">For Sellers</h4>
+          <ul class="space-y-2 text-gray-300">
+            <li><a href="#" class="hover:text-yellow-300 transition">Become a Seller</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Seller Dashboard</a></li>
+            <li><a href="#" class="hover:text-yellow-300 transition">Commission & VAT</a></li>
+          </ul>
+          <div class="mt-5 bg-[#1c1c1c] border border-gray-700 rounded-lg p-3">
+            <p class="text-sm text-gray-300 mb-2">Start selling to millions on Jodise</p>
+            <a href="#"
+              class="inline-block bg-gradient-to-r from-yellow-500 to-amber-400 text-black font-semibold text-sm px-4 py-2 rounded-md hover:brightness-110 transition">
+              Start Selling
+            </a>
+          </div>
+        </div>
+
+        <!-- Column 5 -->
+        <div>
+          <h4 class="text-yellow-400 font-semibold mb-3 text-base uppercase tracking-wide">Download App</h4>
+          <div class="flex flex-wrap gap-3 mb-3">
+            <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/6/67/App_Store_%28iOS%29.svg"
+                class="h-10" alt="App Store"></a>
+            <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+                class="h-10" alt="Google Play"></a>
+          </div>
+          <ul class="text-xs text-gray-400 space-y-1">
+            <li>⚡ Fast & secure checkout</li>
+            <li>🎁 Exclusive gold deals</li>
+            <li>🔔 Instant price-drop alerts</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="border-t border-gray-700 w-3/4 mx-auto mt-10 mb-6"></div>
+
+      <!-- Social Links -->
+      <div class="flex justify-center space-x-6 text-lg mb-4">
+        <a href="#" class="hover:text-yellow-400 transition">📘</a>
+        <a href="#" class="hover:text-yellow-400 transition">📸</a>
+        <a href="#" class="hover:text-yellow-400 transition">🐦</a>
+        <a href="#" class="hover:text-yellow-400 transition">🎥</a>
+      </div>
+
+      <!-- Copyright -->
+      <p class="text-gray-400 text-xs text-center">
+        © {{ now|date:"Y" }} <span class="text-yellow-400 font-semibold">Jodise Marketplace</span> — Smart Shopping •
+        Global Sellers • Premium Service
+      </p>
+    </div>
+  </footer>
+
+  <!-- 🌟 Footer Link Animation -->
+  <style>
+    .footer-link {
+      color: #d1d5db;
+      position: relative;
+      transition: color 0.3s ease;
+    }
+
+    .footer-link::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -2px;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #FFD700, #FFB700);
+      transition: width 0.3s;
+    }
+
+    .footer-link:hover {
+      color: #FFD700;
+    }
+
+    .footer-link:hover::after {
+      width: 100%;
+    }
+  </style>
+
+
+</body>
+
+</html>

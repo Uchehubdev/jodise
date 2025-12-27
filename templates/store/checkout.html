@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Checkout | Jodise{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">Checkout</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+        <!-- Order Summary & Shipping -->
+        <div class="md:col-span-2 space-y-6">
+
+            <!-- Items -->
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <h2 class="text-xl font-bold mb-4">Order Items</h2>
+                {% for item in items %}
+                <div class="flex items-center py-4 border-b last:border-0">
+                    <img src="{{ item.product.images.first.image.url }}" class="w-16 h-16 object-cover rounded mr-4">
+                    <div class="flex-1">
+                        <h3 class="font-medium">{{ item.product.name }}</h3>
+                        <p class="text-gray-500 text-sm">Qty: {{ item.quantity }}</p>
+                    </div>
+                    <div class="font-bold">₦{{ item.subtotal }}</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Shipping Form -->
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <h2 class="text-xl font-bold mb-4">Delivery Options</h2>
+                <form method="POST" id="checkout-form">
+                    {% csrf_token %}
+
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-bold mb-2">Delivery Method</label>
+                        {% for radio in form.delivery_method %}
+                        <div class="flex items-center mb-2">
+                            {{ radio.tag }}
+                            <span class="ml-2">{{ radio.choice_label }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <div class="flex justify-between mb-6 text-xl font-bold">
+            <span>Total</span>
+            <span>₦{{ order.total }}</span>
+        </div>
+
+        <!-- Promo Code -->
+        <form method="POST" class="mb-4 flex">
+            {% csrf_token %}
+            {{ promo_form.code|add_class:"w-full border rounded-l px-3 py-2
+            outline-none"|attr:"placeholder:Promo Code" }}
+            <button type="submit" class="bg-gray-800 text-white px-4 rounded-r">Apply</button>
+        </form>
+
+        <!-- Payment Button -->
+        <button type="submit" form="checkout-form" class="w-full py-4 rounded-lg font-bold text-lg text-white transition transform hover:scale-105
+                    {% if active_gateway == 'paystack' %}
+                        bg-green-600 hover:bg-green-700
+                    {% else %}
+                        bg-indigo-600 hover:bg-indigo-700
+                    {% endif %}">
+
+            {% if active_gateway == 'paystack' %}
+            Pay with Paystack 🇳🇬
+            {% elif active_gateway == 'stripe' %}
+            Pay with Stripe 💳
+            {% else %}
+            Proceed to Payment
+            {% endif %}
+        </button>
+
+        <div class="text-center mt-4 text-xs text-gray-400">
+            <p>Secured by {{ active_gateway|title }}</p>
+        </div>
+    </div>
+</div>
+
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}Become a Seller | Jodise{% endblock %}
+
+{% block content %}
+<section class="min-h-screen bg-gray-50 py-10">
+  <div class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl overflow-hidden">
+    
+    <!-- Header -->
+    <div class="bg-indigo-600 text-white py-6 px-8">
+      <h2 class="text-3xl font-bold text-center">Seller Application (KYC Verification)</h2>
+      <p class="text-center text-indigo-100 mt-2 text-sm">
+        Please complete all required fields and upload valid identification & store assets.
+      </p>
+    </div>
+
+    <!-- Form Body -->
+    <div class="p-8">
+      <form method="post" enctype="multipart/form-data" class="space-y-6" id="sellerForm">
+        {% csrf_token %}
+
+        <!-- Store Information -->
+        <div class="border-b pb-4">
+          <h3 class="text-lg font-semibold text-gray-700 mb-3">Store Information</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-gray-700 font-medium mb-1">{{ form.store_name.label }}</label>
+              {% render_field form.store_name class+="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" %}
+              {% if form.store_name.errors %}
+                <p class="text-red-500 text-sm mt-1">{{ form.store_name.errors|striptags }}</p>
+              {% endif %}
+            </div>
+            <div>
+              <label class="block text-gray-700 font-medium mb-1">{{ form.support_phone.label }}</label>
+              {% render_field form.support_phone class+="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" %}
+              {% if form.support_phone.errors %}
+                <p class="text-red-500 text-sm mt-1">{{ form.support_phone.errors|striptags }}</p>
+              {% endif %}
+            </div>
+          </div>
+          <div class="mt-4">
+            <label class="block text-gray-700 font-medium mb-1">{{ form.description.label }}</label>
+            {% render_field form.description class+="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" %}
+          </div>
+        </div>
+
+        <!-- Media Uploads -->
+        <div class="border-b pb-4">
+          <h3 class="text-lg font-semibold text-gray-700 mb-3">Store Branding</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-gray-700 font-medium mb-1">Store Logo (JPG/PNG)</label>
+              {% render_field form.store_logo class+="w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" %}
+              <p class="text-xs text-gray-500 mt-1">Accepted: JPG, JPEG, PNG (max 5MB)</p>
+              <img id="logoPreview" class="hidden mt-2 w-24 h-24 object-cover rounded-full border">
+            </div>
+            <div>
+              <label class="block text-gray-700 font-medium mb-1">Store Banner (JPG/PNG)</label>
+              {% render_field form.store_banner class+="w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" %}
+              <p class="text-xs text-gray-500 mt-1">Accepted: JPG, JPEG, PNG (max 5MB)</p>
+              <img id="bannerPreview" class="hidden mt-2 w-full h-32 object-cover rounded-lg border">
+            </div>
+          </div>
+        </div>
+
+        <!-- KYC Documents -->
+        <div class="border-b pb-4">
+          <h3 class="text-lg font-semibold text-gray-700 mb-3">KYC Documents</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-gray-700 font-medium mb-1">Government ID (PDF/JPG/PNG)</label>
+              {% render_field form.id_document class+="w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" %}
+              <p class="text-xs text-gray-500 mt-1">Accepted: PDF, JPG, PNG (max 5MB)</p>
+            </div>
+            <div>
+              <label class="block text-gray-700 font-medium mb-1">Business License (Optional)</label>
+              {% render_field form.business_license class+="w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" %}
+              <p class="text-xs text-gray-500 mt-1">Accepted: PDF, JPG, PNG (max 5MB)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Banking Details -->
+        <div>
+          <h3 class="text-lg font-semibold text-gray-700 mb-3">Bank Account Details</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-gray-700 font-medium mb-1">{{ form.bank_account_name.label }}</label>
+              {% render_field form.bank_account_name class+="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" %}
+            </div>
+            <div>
+              <label class="block text-gray-700 font-medium mb-1">{{ form.bank_account_number.label }}</label>
+              {% render_field form.bank_account_number class+="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" %}
+            </div>
+          </div>
+          <div class="mt-4">
+            <label class="block text-gray-700 font-medium mb-1">{{ form.bank_name.label }}</label>
+            {% render_field form.bank_name class+="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" %}
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-6">
+          <button
+            type="submit"
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-transform transform hover:scale-[1.02]"
+          >
+            Submit Application
+          </button>
+          <p class="text-center text-gray-500 text-sm mt-2">
+            By submitting this form, you agree to Jodise’s Seller Terms & KYC Policy.
+          </p>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- JS: Image Preview -->
+<script>
+  const previewImage = (input, previewId) => {
+    const file = input.files[0];
+    const preview = document.getElementById(previewId);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  document.querySelector('input[name="store_logo"]').addEventListener('change', e => previewImage(e.target, 'logoPreview'));
+  document.querySelector('input[name="store_banner"]').addEventListener('change', e => previewImage(e.target, 'bannerPreview'));
+</script>
+{% endblock %}

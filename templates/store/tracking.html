@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Track Shipment | Jodise{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+
+    <div class="max-w-2xl w-full text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Track Your Package 📦</h1>
+        <p class="text-gray-500 mt-2">Enter your tracking number to see real-time updates.</p>
+    </div>
+
+    <!-- Search Form -->
+    <div class="w-full max-w-lg mb-10">
+        <form method="GET" action="{% url 'track_order' %}" class="flex shadow-md rounded-full bg-white p-2">
+            <input type="text" name="tracking_number" value="{{ tracking_number|default:'' }}"
+                class="flex-1 px-4 py-2 rounded-l-full focus:outline-none text-gray-700 uppercase"
+                placeholder="e.g. 582c0693-455b-426e-9818-ee4189312985">
+            <button type="submit"
+                class="bg-yellow-500 text-black font-bold px-6 py-2 rounded-full hover:bg-yellow-400 transition">
+                Track
+            </button>
+        </form>
+    </div>
+
+    {% if delivery %}
+    <div class="bg-white w-full max-w-2xl rounded-xl shadow-lg border border-gray-100 p-8">
+
+        <div class="flex justify-between items-start mb-8 border-b border-gray-100 pb-4">
+            <div>
+                <p class="text-xs text-gray-500 uppercase tracking-widest">Tracking Number</p>
+                <p class="text-xl font-mono font-bold">{{ delivery.tracking_number }}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-xs text-gray-500 uppercase tracking-widest">Current Status</p>
+                <span class="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold mt-1">
+                    {{ delivery.get_status_display }}
+                </span>
+            </div>
+        </div>
+
+        <!-- 📊 Timeline -->
+        <div class="relative pl-8 border-l-2 border-gray-200 space-y-8">
+            <!-- Latest Entry First -->
+            {% for history in delivery.tracking_history.all|dictsortreversed:"timestamp" %}
+            <div class="relative">
+                <span class="absolute -left-10 top-1 h-4 w-4 rounded-full border-2 border-white 
+                    {% if forloop.first %}bg-yellow-500 ring-4 ring-yellow-100{% else %}bg-gray-300{% endif %}">
+                </span>
+
+                <p class="text-sm text-gray-400 mb-1">{{ history.timestamp|date:"M d, Y • h:i A" }}</p>
+                <h4 class="text-lg font-bold text-gray-900 mb-1">
+                    {{ history.status|title }}
+                </h4>
+                <p class="text-gray-600">{{ history.note|default:"Status update logged." }}</p>
+                {% if history.status == 'delivered' and delivery.delivered_photo %}
+                <img src="{{ delivery.delivered_photo.url }}" class="mt-2 w-32 rounded-lg border border-gray-200">
+                {% endif %}
+            </div>
+            {% empty %}
+            <p class="text-gray-500 italic">No tracking updates yet. Shipment created.</p>
+            {% endfor %}
+        </div>
+
+        {% if delivery.status == 'in_transit' %}
+        <div class="mt-8 bg-blue-50 text-blue-800 p-4 rounded-lg flex items-center">
+            <span class="text-2xl mr-3">🚚</span>
+            <div>
+                <p class="font-bold">Estimated Delivery</p>
+                <p class="text-sm">Within 24-48 hours</p>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+    {% elif tracking_number %}
+    <div class="bg-red-50 text-red-600 p-4 rounded-lg max-w-lg text-center">
+        ❌ Tracking number not found. Please check and try again.
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
