@@ -117,38 +117,69 @@ class ProductType(TimeStampedModel):
 # ===========================================================
 # PRODUCT
 # ===========================================================
+# models.py (inside Product model)
+
+import secrets
+from django.urls import reverse
+from django.utils.text import slugify
+
+import random
+from django.urls import reverse
+from django.utils.text import slugify
+
 class Product(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+
+    # ✅ Jumia-style numeric id for URL
+    public_id = models.BigIntegerField(unique=True, editable=False, null=True, blank=True, db_index=True)
+
     seller = models.ForeignKey(SellerProfile, on_delete=models.CASCADE, related_name="products")
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name="products")
     product_type = models.ForeignKey(ProductType, on_delete=models.SET_NULL, null=True)
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True, blank=True)
-    sku = models.CharField(max_length=40, unique=True)
+    sku = models.CharField(max_length=40, unique=True, blank=True)  # ✅ allow blank because you auto-generate
     description = models.TextField()
     price = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
     stock = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
 
+    def _generate_unique_public_id(self):
+        # 9–12 digit numeric like Jumia-ish
+        for _ in range(20):
+            pid = random.randint(100000000, 9999999999)
+            if not type(self).objects.filter(public_id=pid).exists():
+                return pid
+        # fallback (rare)
+        return int(str(uuid4().int)[:10])
+
+    def _generate_unique_slug(self):
+        base = slugify(self.name)[:200] or "product"
+        slug = base
+        n = 1
+        while type(self).objects.filter(slug=slug).exclude(pk=self.pk).exists():
+            n += 1
+            slug = f"{base}-{n}"
+        return slug
+
     def save(self, *args, **kwargs):
+        if not self.public_id:
+            self.public_id = self._generate_unique_public_id()
+
         if not self.slug:
-            self.slug = slugify(f"{self.name}-{uuid4().hex[:6]}")
-        
+            self.slug = self._generate_unique_slug()
+
         if not self.sku:
-            # Generate SKU: JOD-{SellerID}-{Random}
             seller_ref = str(self.seller.id)[:4].upper()
             rand_ref = uuid4().hex[:6].upper()
             self.sku = f"JOD-{seller_ref}-{rand_ref}"
 
         super().save(*args, **kwargs)
 
-    def __str__(self):
-        return f"{self.name} ({self.seller.store_name})"
+    def get_absolute_url(self):
+        return reverse("product_detail", kwargs={"slug": self.slug, "public_id": self.public_id})
 
-    @property
-    def in_stock(self):
-        return self.stock > 0
 
 
 class ProductImage(TimeStampedModel):
@@ -203,6 +234,11 @@ class DeliveryMethod(models.Model):
 # ===========================================================
 # ORDER (MULTI-VENDOR)
 # ===========================================================
+import random
+import uuid
+from django.db import models
+from django.utils.crypto import get_random_string
+
 class Order(TimeStampedModel):
     STATUS = [
         ("pending", "Pending"),
@@ -213,27 +249,77 @@ class Order(TimeStampedModel):
         ("cancelled", "Cancelled"),
     ]
 
-    reference = models.CharField(max_length=60, unique=True, default=uuid4)
-    buyer = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, related_name="orders")
-    delivery_method = models.ForeignKey(DeliveryMethod, on_delete=models.SET_NULL, null=True)
-    status = models.CharField(max_length=20, choices=STATUS, default="pending")
+    reference = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
+    buyer = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="orders"
+    )
+
+    delivery_method = models.ForeignKey(
+        DeliveryMethod,
+        on_delete=models.SET_NULL,
+        null=True
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS,
+        default="pending"
+    )
 
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     vat = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     delivery_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-    def __str__(self):
-        return f"Order {self.reference}"
+    tracking_no = models.CharField(
+        max_length=6,
+        unique=True,
+        blank=True,
+        null=True
+    )
 
+    # -----------------------------
+    # 🔹 Tracking Number Generator
+    # -----------------------------
+    @staticmethod
+    def generate_tracking_no():
+        """
+        Generates a unique 6-character HEX tracking number
+        Example: A3F9C2
+        """
+        while True:
+            code = "{:06X}".format(random.randint(0, 0xFFFFFF))
+            if not Order.objects.filter(tracking_no=code).exists():
+                return code
+
+    # -----------------------------
+    # 🔹 Save Override
+    # -----------------------------
+    def save(self, *args, **kwargs):
+        if not self.tracking_no:
+            self.tracking_no = self.generate_tracking_no()
+        super().save(*args, **kwargs)
+
+    # -----------------------------
+    # 🔹 Totals Calculation
+    # -----------------------------
     def calculate_totals(self):
         config = MarketplaceSetting.current()
         items = self.items.all()
+
         self.subtotal = sum(i.subtotal for i in items)
         self.vat = (self.subtotal * config.vat_rate) / 100
         self.delivery_fee = self.delivery_method.flat_fee if self.delivery_method else 0
         self.total = self.subtotal + self.vat + self.delivery_fee
-        self.save()
+
+        self.save(update_fields=["subtotal", "vat", "delivery_fee", "total"])
+
+    def __str__(self):
+        return f"Order {self.reference}"
 
 
 class OrderItem(models.Model):

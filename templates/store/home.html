@@ -1,174 +1,305 @@
 {% extends "base.html" %}
 {% block title %}Jodise | Mega Deals & Low Prices{% endblock %}
 
+{% block meta_description %}Shop today’s lightning deals and trending products on Jodise. Mega discounts, fast delivery, and low prices.{% endblock %}
+
 {% block content %}
 <div class="max-w-7xl mx-auto md:px-6">
 
   <!-- 🔍 Mobile Sticky Search -->
-  <div class="md:hidden sticky top-0 bg-white shadow-md z-40 p-3 flex gap-2 items-center">
-    <div class="relative flex-1">
+  <div class="md:hidden sticky top-0 bg-white/95 backdrop-blur border-b border-gray-100 z-40 p-3 flex gap-2 items-center">
+    <form action="{% url 'search_products' %}" method="GET" class="relative flex-1">
+      <label class="sr-only" for="mSearch">Search</label>
       <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">🔍</span>
-      <form action="{% url 'search_products' %}" method="GET">
-        <input type="text" name="q" placeholder="Search... (e.g. 'Sneakers')"
-          class="w-full bg-gray-100 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500">
-      </form>
-    </div>
-    <a href="{% url 'view_cart' %}" class="text-2xl relative">
+      <input
+        id="mSearch"
+        type="text"
+        name="q"
+        value="{{ request.GET.q|default:'' }}"
+        placeholder="Search products… (e.g. Sneakers)"
+        class="w-full bg-gray-100 rounded-full py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+        autocomplete="off"
+      >
+    </form>
+
+    <a href="{% url 'view_cart' %}" class="text-2xl relative" aria-label="Cart">
       🛒
-      {% if request.user.is_authenticated %}
-      <span
-        class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">3</span>
-      {% endif %}
+      {% with cc=cart_count|default:0 %}
+        {% if cc|add:0 > 0 %}
+          <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+            {{ cc }}
+          </span>
+        {% endif %}
+      {% endwith %}
     </a>
   </div>
 
-  <!-- 🚚 Hero Section (Desktop Grid) -->
+  <!-- 🚚 HERO SECTION (Desktop Grid) -->
   <div class="mt-4 px-3 md:px-0 grid grid-cols-1 md:grid-cols-12 gap-4">
+
     <!-- Sidebar Categories (Desktop) -->
-    <div class="hidden md:block col-span-2 bg-white rounded-lg shadow-sm p-4 h-96 overflow-y-auto">
-      <h3 class="font-bold mb-3 text-gray-700">Categories</h3>
-      <ul class="space-y-2 text-sm text-gray-600">
+    <aside class="hidden md:block col-span-2 bg-white rounded-2xl shadow-sm p-4 h-96 overflow-y-auto border border-gray-100">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-extrabold text-gray-900">Categories</h3>
+        <a href="{% url 'search_products' %}" class="text-xs text-orange-600 hover:underline">See all</a>
+      </div>
+
+      <ul class="space-y-1.5 text-sm text-gray-700">
         {% for cat in categories %}
-        <li class="hover:text-yellow-600 hover:bg-yellow-50 p-1 rounded cursor-pointer transition">
-          {{ cat.name }}
-        </li>
+          <li>
+            <a
+              href="{% url 'search_products' %}?category={{ cat.id }}"
+              class="flex items-center justify-between hover:text-yellow-700 hover:bg-yellow-50 px-2 py-2 rounded-xl transition"
+            >
+              <span class="truncate">{{ cat.name }}</span>
+              <span class="text-gray-300">›</span>
+            </a>
+          </li>
+        {% empty %}
+          <li class="text-gray-400 text-sm px-2 py-2">No categories yet.</li>
         {% endfor %}
-        <li>...More</li>
       </ul>
-    </div>
 
-    <!-- Main Slider -->
-    <div
-      class="col-span-1 md:col-span-8 bg-gradient-to-r from-orange-400 to-yellow-500 rounded-xl h-48 md:h-96 flex items-center justify-center relative shadow-lg overflow-hidden group">
-      <div class="text-center z-10 text-white p-4">
-        <h1 class="text-3xl md:text-5xl font-extrabold drop-shadow-md mb-2">MEGA BLOWOUT SALE</h1>
-        <p class="text-lg md:text-xl font-bold bg-black/20 inline-block px-4 py-1 rounded-full mb-4">Up to 90% OFF</p>
-        <br>
-        <button
-          class="bg-white text-orange-600 font-bold py-2 px-8 rounded-full shadow-xl hover:scale-105 transition transform">
-          Shop Now
-        </button>
+      <div class="mt-4 p-3 rounded-2xl border border-yellow-100 bg-yellow-50">
+        <p class="text-xs text-gray-700 font-semibold">Tip</p>
+        <p class="text-xs text-gray-600 mt-1">
+          Use search to find stores, brands, and deals faster.
+        </p>
       </div>
-      <!-- Decorative circles -->
-      <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/20 rounded-full blur-2xl"></div>
-      <div class="absolute bottom-0 left-0 w-60 h-60 bg-yellow-300/30 rounded-full blur-3xl"></div>
-    </div>
+    </aside>
 
-    <!-- Right Promo (Desktop) -->
-    <div class="hidden md:flex col-span-2 flex-col gap-4">
-      <div class="bg-white rounded-lg shadow-sm p-4 flex-1 flex flex-col items-center justify-center text-center">
-        <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-2xl mb-2">⚡</div>
-        <p class="font-bold text-sm">Flash Deals</p>
-        <p class="text-xs text-red-500 font-bold">Expires in 02:14:59</p>
+    <!-- Main Hero -->
+    <section class="col-span-1 md:col-span-8 rounded-3xl overflow-hidden shadow-lg border border-orange-100">
+      <div class="relative deal-gradient h-56 md:h-96 flex items-center">
+        <div class="absolute inset-0 opacity-20">
+          <div class="absolute -top-10 -right-10 w-44 h-44 bg-white rounded-full blur-2xl"></div>
+          <div class="absolute -bottom-16 -left-12 w-72 h-72 bg-yellow-300 rounded-full blur-3xl"></div>
+          <div class="absolute top-14 left-20 w-16 h-16 bg-white rounded-full blur-xl"></div>
+        </div>
+
+        <div class="relative z-10 w-full p-5 md:p-10 text-white">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="inline-flex items-center gap-2 bg-black/25 px-3 py-1.5 rounded-full text-xs md:text-sm font-semibold">
+              🔥 Today’s Hot Deals
+            </span>
+            <span class="hidden md:inline-flex bg-white/15 px-3 py-1.5 rounded-full text-xs font-semibold">
+              New drops daily
+            </span>
+          </div>
+
+          <h1 class="text-3xl md:text-6xl font-extrabold leading-tight drop-shadow-sm">
+            Mega Blowout Sale
+          </h1>
+          <p class="mt-2 text-sm md:text-xl font-bold bg-black/20 inline-block px-4 py-1.5 rounded-full">
+            Up to 90% OFF
+          </p>
+
+          <div class="mt-6 flex flex-wrap gap-3">
+            <a
+              href="{% url 'search_products' %}"
+              class="bg-white text-orange-700 font-extrabold py-2.5 px-8 rounded-full shadow-xl hover:scale-105 transform transition"
+            >
+              Shop Now
+            </a>
+            <a
+              href="#recommended"
+              class="bg-black/20 text-white font-semibold py-2.5 px-7 rounded-full hover:bg-black/30 transition"
+            >
+              Explore
+            </a>
+          </div>
+
+          <p class="mt-4 text-xs md:text-sm text-white/90">
+            Trusted sellers • Buyer protection • Fast checkout
+          </p>
+        </div>
       </div>
-      <div class="bg-white rounded-lg shadow-sm p-4 flex-1 flex flex-col items-center justify-center text-center">
-        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-2xl mb-2">🚚</div>
-        <p class="font-bold text-sm">Free Shipping</p>
-        <p class="text-xs text-gray-500">On all orders</p>
+    </section>
+
+    <!-- Right Promo -->
+    <aside class="hidden md:flex col-span-2 flex-col gap-4">
+
+      <div class="bg-white rounded-2xl shadow-sm p-4 flex-1 border border-gray-100">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center text-2xl">⚡</div>
+          <div class="min-w-0">
+            <p class="font-extrabold text-sm text-gray-900">Lightning Deals</p>
+            <p class="text-xs text-gray-500 truncate">Limited-time offers</p>
+          </div>
+        </div>
+        <a href="{% url 'search_products' %}" class="mt-4 inline-flex w-full justify-center text-xs font-extrabold text-orange-700 bg-orange-50 border border-orange-100 py-2 rounded-xl hover:bg-orange-100 transition">
+          Shop deals
+        </a>
       </div>
-    </div>
+
+      <div class="bg-white rounded-2xl shadow-sm p-4 flex-1 border border-gray-100">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-2xl">🚚</div>
+          <div class="min-w-0">
+            <p class="font-extrabold text-sm text-gray-900">Free Shipping</p>
+            <p class="text-xs text-gray-500 truncate">On selected items</p>
+          </div>
+        </div>
+        <a href="{% url 'search_products' %}" class="mt-4 inline-flex w-full justify-center text-xs font-extrabold text-blue-700 bg-blue-50 border border-blue-100 py-2 rounded-xl hover:bg-blue-100 transition">
+          View eligible
+        </a>
+      </div>
+
+    </aside>
+
   </div>
 
-  <!-- ⚡ Flash Deals Carousel (Mobile/Desktop) -->
+  <!-- ⚡ Flash Deals Carousel -->
   <section class="mt-8 px-3 md:px-0">
     <div class="flex justify-between items-center mb-4">
-      <h2 class="font-extrabold text-xl flex items-center">
-        <span class="text-red-500 mr-2">⚡</span> Lightening Deals
-        <span
-          class="ml-4 bg-black text-white text-xs px-2 py-1 rounded font-mono hidden md:inline-block">02:14:59</span>
-      </h2>
-      <a href="#" class="text-sm font-semibold text-orange-500 hover:underline">View All ></a>
+      <div class="flex items-center gap-3">
+        <h2 class="font-extrabold text-xl flex items-center">
+          <span class="text-red-500 mr-2">⚡</span> Lightning Deals
+        </h2>
+        <span class="hidden md:inline-flex bg-black text-white text-xs px-2.5 py-1 rounded font-mono">
+          Limited Time
+        </span>
+      </div>
+
+      <a href="{% url 'search_products' %}" class="text-sm font-semibold text-orange-600 hover:underline">
+        View All &gt;
+      </a>
     </div>
 
     <div class="flex space-x-4 overflow-x-auto pb-6 hide-scrollbar snap-x">
       {% for p in featured %}
-      <a href="{% url 'product_detail' p.id %}"
-        class="bg-white rounded-xl shadow min-w-[160px] md:min-w-[200px] snap-center hover:shadow-xl transition transform hover:-translate-y-1 relative group">
-        <!-- Discount Tag -->
-        <span
-          class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full z-10">-50%</span>
+        <a
+          href="{% url 'product_detail' p.slug p.public_id %}"
+          class="bg-white rounded-2xl shadow-sm min-w-[170px] md:min-w-[230px] snap-center hover:shadow-lg transition transform hover:-translate-y-1 relative group border border-gray-100 overflow-hidden"
+        >
+          <span class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-extrabold px-2 py-1 rounded-full z-10">
+            DEAL
+          </span>
 
-        <img src="{{ p.images.first.image.url|default:'https://via.placeholder.com/200?text=Item' }}"
-          class="w-full h-40 object-cover rounded-t-xl group-hover:opacity-90">
+          {% with first_img=p.images.first %}
+            {% if first_img %}
+              <img
+                src="{{ first_img.image.url }}"
+                alt="{{ p.name }}"
+                class="w-full h-40 object-cover group-hover:opacity-95"
+                loading="lazy"
+              >
+            {% else %}
+              <img
+                src="https://via.placeholder.com/230x160?text=Item"
+                alt="{{ p.name }}"
+                class="w-full h-40 object-cover"
+                loading="lazy"
+              >
+            {% endif %}
+          {% endwith %}
 
-        <div class="p-3">
-          <div class="h-1 w-full bg-gray-200 rounded-full mb-2 overflow-hidden">
-            <div class="h-full bg-orange-500 w-3/4"></div>
+          <div class="p-3">
+            <div class="h-1 w-full bg-gray-200 rounded-full mb-2 overflow-hidden">
+              <div class="h-full bg-orange-500 w-3/4"></div>
+            </div>
+
+            <p class="text-xs text-gray-500 mb-1">🔥 Almost Sold Out</p>
+
+            <p class="text-gray-900 font-extrabold text-sm truncate">{{ p.name }}</p>
+
+            <div class="flex items-baseline mt-1 space-x-2">
+              <span class="text-red-600 font-extrabold text-lg">{{ currency_symbol|default:"₦" }}{{ p.price }}</span>
+              <span class="text-gray-400 text-xs line-through">
+                {{ currency_symbol|default:"₦" }}{{ p.price|add:"5000" }}
+              </span>
+            </div>
           </div>
-          <p class="text-xs text-gray-500 mb-1">🔥 Almost Sold Out</p>
-
-          <p class="text-gray-900 font-medium text-sm truncate">{{ p.name }}</p>
-          <div class="flex items-baseline mt-1 space-x-2">
-            <span class="text-red-600 font-bold text-lg">{{ currency_symbol }}{{ p.price }}</span>
-            <span class="text-gray-400 text-xs line-through">{{ currency_symbol }}{{ p.price|add:"5000" }}</span>
-          </div>
+        </a>
+      {% empty %}
+        <div class="bg-white border border-gray-100 rounded-2xl p-6 text-sm text-gray-500">
+          No featured products yet.
         </div>
-      </a>
       {% endfor %}
     </div>
   </section>
 
-  <!-- 🔥 Infinite Grid Recommendation -->
-  <section class="mt-4 px-3 md:px-0 pb-20">
+  <!-- 🔥 Recommended Grid -->
+  <section id="recommended" class="mt-4 px-3 md:px-0 pb-20">
     <div class="text-center mb-6">
-      <h2
-        class="text-lg font-bold text-gray-800 uppercase tracking-widest border-b-2 border-yellow-400 inline-block pb-1">
-        Recommended For You</h2>
+      <h2 class="text-lg font-extrabold text-gray-900 uppercase tracking-widest border-b-2 border-yellow-400 inline-block pb-1">
+        Recommended For You
+      </h2>
+      <p class="text-xs text-gray-500 mt-2">Fresh picks updated regularly</p>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
       {% for p in latest %}
-      <a href="{% url 'product_detail' p.id %}"
-        class="bg-white rounded-lg shadow-sm hover:shadow-lg transition duration-200 flex flex-col relative group border border-gray-100">
+        <a
+          href="{% url 'product_detail' p.slug p.public_id %}"
+          class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition duration-200 flex flex-col relative group border border-gray-100 overflow-hidden"
+        >
+          {% with first_img=p.images.first %}
+            {% if first_img %}
+              <img
+                src="{{ first_img.image.url }}"
+                alt="{{ p.name }}"
+                class="w-full h-40 md:h-48 object-cover"
+                loading="lazy"
+              >
+            {% else %}
+              <img
+                src="https://via.placeholder.com/300x240?text=Product"
+                alt="{{ p.name }}"
+                class="w-full h-40 md:h-48 object-cover"
+                loading="lazy"
+              >
+            {% endif %}
+          {% endwith %}
 
-        <img src="{{ p.images.first.image.url|default:'https://via.placeholder.com/200?text=Product' }}"
-          class="w-full h-40 md:h-48 object-cover rounded-t-lg">
+          <span
+            class="hidden md:group-hover:flex absolute bottom-24 right-2 bg-orange-500 text-white p-2 rounded-full shadow-lg hover:bg-orange-600 transition items-center justify-center"
+            title="Add to cart"
+          >
+            🛒
+          </span>
 
-        <!-- Hover Add to Cart Button (Desktop) -->
-        <button
-          class="hidden md:group-hover:block absolute bottom-24 right-2 bg-orange-500 text-white p-2 rounded-full shadow-lg hover:bg-orange-600 transition">
-          🛒
-        </button>
+          <div class="p-3 flex flex-col flex-1">
+            <p class="text-gray-900 text-sm font-extrabold line-clamp-2 mb-1 leading-tight">
+              {{ p.name }}
+            </p>
 
-        <div class="p-3 flex flex-col flex-1">
-          <p class="text-gray-800 text-sm font-medium line-clamp-2 mb-1 leading-tight">{{ p.name }}</p>
+            <div class="mt-auto">
+              <div class="flex items-center space-x-1 mb-1">
+                <span class="text-yellow-400 text-xs">★★★★☆</span>
+                <span class="text-gray-400 text-[10px]">(99+)</span>
+              </div>
 
-          <div class="mt-auto">
-            <div class="flex items-center space-x-1 mb-1">
-              <span class="text-yellow-400 text-xs">★★★★☆</span>
-              <span class="text-gray-400 text-[10px]">(99+)</span>
-            </div>
-
-            <div class="flex justify-between items-center">
-              <span class="text-gray-900 font-bold">₦{{ p.price }}</span>
-              <span class="text-[10px] text-green-600 bg-green-50 px-1 rounded">Free Ship</span>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-900 font-extrabold">{{ currency_symbol|default:"₦" }}{{ p.price }}</span>
+                <span class="text-[10px] text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                  Free Ship
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      </a>
+        </a>
       {% empty %}
-      <p class="col-span-full text-center text-gray-500 py-10">Starting out? Add products to see them here!</p>
+        <p class="col-span-full text-center text-gray-500 py-10">
+          Starting out? Add products to see them here!
+        </p>
       {% endfor %}
     </div>
 
     <div class="mt-8 text-center">
-      <button
-        class="bg-white border border-gray-300 text-gray-700 px-6 py-2 rounded-full shadow hover:bg-gray-50 transition text-sm font-semibold">
-        Load More Products
-      </button>
+      <a
+        href="{% url 'search_products' %}"
+        class="inline-flex items-center justify-center bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-full shadow-sm hover:bg-gray-50 transition text-sm font-extrabold"
+      >
+        Browse More Products
+      </a>
     </div>
   </section>
 
 </div>
 
 <style>
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
 {% endblock %}

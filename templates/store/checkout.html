@@ -1,89 +1,578 @@
+{# templates/store/checkout.html #}
 {% extends "base.html" %}
 {% load widget_tweaks %}
 
 {% block title %}Checkout | Jodise{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8">Checkout</h1>
+<style>
+  [x-cloak] { display: none !important; }
+</style>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+{# ✅ Safer Alpine config: JSON script instead of giant x-data inline #}
+<script id="checkoutCfg" type="application/json">
+{
+  "currency": "{{ currency_symbol|default:'₦'|escapejs }}",
+  "initSubtotal": {{ order.subtotal|default_if_none:0|floatformat:2 }},
+  "initVat": {{ order.vat|default_if_none:0|floatformat:2 }},
+  "initDeliveryFee": {{ order.delivery_fee|default_if_none:0|floatformat:2 }},
+  "items": {
+    {% for item in items %}
+      "{{ item.id }}": {
+        "qty": {{ item.quantity|default_if_none:1 }},
+        "unit": {{ item.unit_price|default_if_none:0|floatformat:2 }},
+        "max": {% if item.product %}{{ item.product.stock|default_if_none:999999 }}{% else %}999999{% endif %}
+      }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  }
+}
+</script>
 
-        <!-- Order Summary & Shipping -->
-        <div class="md:col-span-2 space-y-6">
+<div
+  class="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-10"
+  x-data="checkoutUI(JSON.parse(document.getElementById('checkoutCfg').textContent))"
+>
+  <!-- Header -->
+  <div class="flex items-start justify-between gap-4 mb-6">
+    <div class="min-w-0">
+      <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900">Checkout</h1>
+      <p class="text-sm text-gray-500 mt-1">Review items, enter delivery address, then pay securely.</p>
 
-            <!-- Items -->
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                <h2 class="text-xl font-bold mb-4">Order Items</h2>
-                {% for item in items %}
-                <div class="flex items-center py-4 border-b last:border-0">
-                    <img src="{{ item.product.images.first.image.url }}" class="w-16 h-16 object-cover rounded mr-4">
-                    <div class="flex-1">
-                        <h3 class="font-medium">{{ item.product.name }}</h3>
-                        <p class="text-gray-500 text-sm">Qty: {{ item.quantity }}</p>
-                    </div>
-                    <div class="font-bold">₦{{ item.subtotal }}</div>
+      <!-- Steps -->
+      <div class="mt-4 flex flex-wrap items-center gap-2 text-xs">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 text-orange-700 font-bold">
+          <span class="w-5 h-5 rounded-full bg-orange-600 text-white grid place-items-center text-[11px]">1</span>
+          Review
+        </span>
+        <span class="text-gray-300">›</span>
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 text-orange-700 font-bold">
+          <span class="w-5 h-5 rounded-full bg-orange-600 text-white grid place-items-center text-[11px]">2</span>
+          Address
+        </span>
+        <span class="text-gray-300">›</span>
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 text-gray-700 font-bold">
+          <span class="w-5 h-5 rounded-full bg-gray-900 text-white grid place-items-center text-[11px]">3</span>
+          Pay
+        </span>
+      </div>
+    </div>
+
+    <a href="{% url 'view_cart' %}" class="shrink-0 text-sm font-bold text-orange-600 hover:underline">
+      Edit Cart
+    </a>
+  </div>
+
+  {% if not items %}
+    <div class="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+      <p class="font-bold text-gray-900">Your cart is empty.</p>
+      <a href="{% url 'store_home' %}" class="inline-flex mt-4 px-4 py-2 rounded-xl bg-gray-900 text-white font-extrabold hover:bg-black">
+        Browse products
+      </a>
+    </div>
+  {% else %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT -->
+    <div class="lg:col-span-8 space-y-6">
+
+      <!-- Order Items -->
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 class="text-lg font-extrabold text-gray-900">Order Items</h2>
+          <p class="text-xs text-gray-500">
+            <span class="font-bold" x-text="Object.keys(items).length"></span> item(s)
+          </p>
+        </div>
+
+        <div class="divide-y">
+          {% for item in items %}
+          <div class="p-5 flex gap-4">
+            <!-- image -->
+            <div class="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden shrink-0 border border-gray-200">
+              {% if item.product %}
+                {% with img=item.product.images.first %}
+                  {% if img %}
+                    <img src="{{ img.image.url }}" class="w-full h-full object-cover" alt="{{ item.product.name }}">
+                  {% else %}
+                    <img src="https://via.placeholder.com/120x120?text=Item" class="w-full h-full object-cover" alt="Item">
+                  {% endif %}
+                {% endwith %}
+              {% else %}
+                <img src="https://via.placeholder.com/120x120?text=Item" class="w-full h-full object-cover" alt="Item">
+              {% endif %}
+            </div>
+
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="font-extrabold text-gray-900 truncate">
+                    {{ item.product.name|default:"Item" }}
+                  </p>
+
+                  <p class="text-xs text-gray-500 mt-1">
+                    Unit:
+                    <span class="font-semibold">{{ currency_symbol|default:"₦" }}{{ item.unit_price }}</span>
+                    {% if item.product and item.product.sku %}
+                      <span class="mx-2 text-gray-300">•</span>
+                      <span class="font-semibold text-gray-600">SKU:</span> {{ item.product.sku }}
+                    {% endif %}
+                  </p>
                 </div>
-                {% endfor %}
-            </div>
 
-            <!-- Shipping Form -->
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                <h2 class="text-xl font-bold mb-4">Delivery Options</h2>
-                <form method="POST" id="checkout-form">
-                    {% csrf_token %}
-
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-bold mb-2">Delivery Method</label>
-                        {% for radio in form.delivery_method %}
-                        <div class="flex items-center mb-2">
-                            {{ radio.tag }}
-                            <span class="ml-2">{{ radio.choice_label }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
+                <!-- Remove -->
+                <form method="POST" action="{% url 'remove_from_cart' item.id %}">
+                  {% csrf_token %}
+                  <button
+                    type="submit"
+                    class="text-xs font-extrabold text-red-600 hover:underline disabled:opacity-60"
+                    :disabled="saving"
+                  >
+                    Remove
+                  </button>
                 </form>
+              </div>
+
+              <!-- Qty stepper -->
+              <div class="mt-3 flex items-center gap-3">
+                <div class="inline-flex items-center rounded-full border border-gray-200 overflow-hidden bg-white">
+                  <button
+                    type="button"
+                    class="w-10 h-10 grid place-items-center text-lg font-extrabold text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                    @click="dec('{{ item.id }}')"
+                    :disabled="items['{{ item.id }}'].qty <= 1 || saving"
+                    aria-label="Decrease quantity"
+                  >−</button>
+
+                  <input
+                    type="text"
+                    class="w-14 text-center font-extrabold text-gray-900 outline-none bg-white"
+                    x-model="items['{{ item.id }}'].qty"
+                    readonly
+                    aria-label="Quantity"
+                  >
+
+                  <button
+                    type="button"
+                    class="w-10 h-10 grid place-items-center text-lg font-extrabold text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                    @click="inc('{{ item.id }}')"
+                    :disabled="items['{{ item.id }}'].qty >= items['{{ item.id }}'].max || saving"
+                    aria-label="Increase quantity"
+                  >+</button>
+                </div>
+
+                <span class="text-xs text-gray-400" x-show="items['{{ item.id }}'].max < 999999" x-cloak>
+                  Max: <span x-text="items['{{ item.id }}'].max"></span>
+                </span>
+
+                <span class="ml-auto font-extrabold text-gray-900">
+                  <span x-text="currency + money(lineTotal('{{ item.id }}'))"></span>
+                </span>
+              </div>
+
+              <p class="mt-2 text-xs text-red-600 font-semibold"
+                 x-show="rowError['{{ item.id }}']"
+                 x-text="rowError['{{ item.id }}']"
+                 x-cloak></p>
             </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Delivery Address -->
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-extrabold text-gray-900">Delivery Address</h2>
+            <p class="text-sm text-gray-500 mt-1">Enter the address we’ll deliver to.</p>
+          </div>
+
+          <span class="shrink-0 text-xs font-bold text-gray-400">Required</span>
         </div>
 
-        <hr class="my-4">
+        <!-- ✅ Address form stays normal (but Pay button will NOT submit it directly; we use inline Paystack) -->
+        <form method="POST" id="checkout-form" class="p-5 space-y-4" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="pay_now" value="1">
 
-        <div class="flex justify-between mb-6 text-xl font-bold">
-            <span>Total</span>
-            <span>₦{{ order.total }}</span>
-        </div>
+          <!-- Contact preview -->
+          <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <p class="text-xs text-gray-500">Contact</p>
+            <div class="mt-1 text-sm text-gray-700 flex flex-wrap gap-x-4 gap-y-1">
+              <span><span class="font-semibold text-gray-900">Name:</span> {{ request.user.get_full_name|default:request.user.email }}</span>
+              <span><span class="font-semibold text-gray-900">Email:</span> {{ request.user.email }}</span>
+              <span><span class="font-semibold text-gray-900">Phone:</span> {{ request.user.phone|default:"—" }}</span>
+            </div>
 
-        <!-- Promo Code -->
-        <form method="POST" class="mb-4 flex">
-            {% csrf_token %}
-            {{ promo_form.code|add_class:"w-full border rounded-l px-3 py-2
-            outline-none"|attr:"placeholder:Promo Code" }}
-            <button type="submit" class="bg-gray-800 text-white px-4 rounded-r">Apply</button>
-        </form>
-
-        <!-- Payment Button -->
-        <button type="submit" form="checkout-form" class="w-full py-4 rounded-lg font-bold text-lg text-white transition transform hover:scale-105
-                    {% if active_gateway == 'paystack' %}
-                        bg-green-600 hover:bg-green-700
-                    {% else %}
-                        bg-indigo-600 hover:bg-indigo-700
-                    {% endif %}">
-
-            {% if active_gateway == 'paystack' %}
-            Pay with Paystack 🇳🇬
-            {% elif active_gateway == 'stripe' %}
-            Pay with Stripe 💳
-            {% else %}
-            Proceed to Payment
+            {% if request.user.full_address %}
+              <p class="mt-3 text-xs text-gray-500">
+                Saved address:
+                <span class="font-semibold text-gray-800">{{ request.user.full_address }}</span>
+              </p>
             {% endif %}
+          </div>
+
+          {% if address_form %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="md:col-span-2">
+                <label class="text-sm font-bold text-gray-700">Address Line 1</label>
+                {{ address_form.address_line1|add_class:"mt-1 w-full border border-gray-200 rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-orange-300"|attr:"required:required" }}
+                {% if address_form.address_line1.errors %}
+                  <p class="text-xs text-red-600 mt-1">{{ address_form.address_line1.errors|striptags }}</p>
+                {% endif %}
+              </div>
+
+              <div class="md:col-span-2">
+                <label class="text-sm font-bold text-gray-700">Address Line 2 (Optional)</label>
+                {{ address_form.address_line2|add_class:"mt-1 w-full border border-gray-200 rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-orange-300" }}
+              </div>
+
+              <div>
+                <label class="text-sm font-bold text-gray-700">City</label>
+                {{ address_form.city|add_class:"mt-1 w-full border border-gray-200 rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-orange-300"|attr:"required:required" }}
+                {% if address_form.city.errors %}
+                  <p class="text-xs text-red-600 mt-1">{{ address_form.city.errors|striptags }}</p>
+                {% endif %}
+              </div>
+
+              <div>
+                <label class="text-sm font-bold text-gray-700">State</label>
+                {{ address_form.state|add_class:"mt-1 w-full border border-gray-200 rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-orange-300"|attr:"required:required" }}
+                {% if address_form.state.errors %}
+                  <p class="text-xs text-red-600 mt-1">{{ address_form.state.errors|striptags }}</p>
+                {% endif %}
+              </div>
+
+              <div>
+                <label class="text-sm font-bold text-gray-700">Country</label>
+                {{ address_form.country|add_class:"mt-1 w-full border border-gray-200 rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-orange-300"|attr:"required:required" }}
+                {% if address_form.country.errors %}
+                  <p class="text-xs text-red-600 mt-1">{{ address_form.country.errors|striptags }}</p>
+                {% endif %}
+              </div>
+
+              <div>
+                <label class="text-sm font-bold text-gray-700">Postal Code (Optional)</label>
+                {{ address_form.postal_code|add_class:"mt-1 w-full border border-gray-200 rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-orange-300" }}
+              </div>
+            </div>
+          {% else %}
+            <div class="text-sm text-gray-600">
+              <span class="font-bold">Missing address_form</span> in view context.
+            </div>
+          {% endif %}
+
+          <p class="text-xs text-gray-500">
+            By paying, you confirm your delivery address is correct.
+          </p>
+        </form>
+      </div>
+
+      <!-- Promo code (optional) -->
+      {% if promo_form %}
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h3 class="font-extrabold text-gray-900">Promo Code</h3>
+            <p class="text-xs text-gray-500 mt-1">Have a code? Apply it before you pay.</p>
+          </div>
+        </div>
+
+        <form method="POST" class="mt-3 flex flex-col sm:flex-row gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="apply_promo" value="1">
+          {{ promo_form.code|add_class:"flex-1 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-yellow-400"|attr:"placeholder:Promo code" }}
+          <button class="px-4 py-2.5 rounded-xl bg-gray-900 text-white font-extrabold hover:bg-black">
+            Apply
+          </button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- RIGHT: Summary -->
+    <div class="lg:col-span-4">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sticky top-24">
+        <div class="flex items-start justify-between gap-3">
+          <h3 class="text-lg font-extrabold text-gray-900">Order Summary</h3>
+          <span class="inline-flex items-center gap-2 text-xs font-bold text-gray-600">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 00-5 5v3H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-8a2 2 0 00-2-2h-1V7a5 5 0 00-5-5zm3 8H9V7a3 3 0 016 0v3z"/></svg>
+            Secure
+          </span>
+        </div>
+
+        <div class="mt-4 space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-600">Items Subtotal</span>
+            <span class="font-extrabold text-gray-900" x-text="currency + money(itemsSubtotal())"></span>
+          </div>
+
+          <div class="flex justify-between">
+            <span class="text-gray-600">VAT</span>
+            <span class="font-extrabold text-gray-900" x-text="currency + money(vatAmount())"></span>
+          </div>
+
+          <div class="flex justify-between">
+            <span class="text-gray-600">Delivery Fee</span>
+            <span class="font-extrabold text-gray-900" x-text="currency + money(deliveryFee)"></span>
+          </div>
+
+          <div class="border-t pt-3 flex justify-between text-base">
+            <span class="font-extrabold text-gray-900">Total</span>
+            <span class="font-extrabold text-gray-900" x-text="currency + money(grandTotal())"></span>
+          </div>
+        </div>
+
+        <!-- ✅ Inline Pay Button (NO redirect) -->
+        <button
+          type="button"
+          @click="payNow()"
+          :disabled="saving || hasAnyError()"
+          class="mt-5 w-full py-3.5 rounded-2xl font-extrabold text-white transition transform hover:scale-[1.01]
+          disabled:opacity-60 disabled:cursor-not-allowed
+          {% if active_gateway == 'paystack' %}
+            bg-green-600 hover:bg-green-700
+          {% elif active_gateway == 'stripe' %}
+            bg-indigo-600 hover:bg-indigo-700
+          {% else %}
+            bg-gray-900 hover:bg-black
+          {% endif %}"
+        >
+          <span x-show="!saving">
+            {% if active_gateway == 'paystack' %}
+              Pay with Paystack 🇳🇬
+            {% elif active_gateway == 'stripe' %}
+              Pay with Stripe 💳
+            {% else %}
+              Proceed to Payment
+            {% endif %}
+          </span>
+          <span x-show="saving" x-cloak>Preparing payment…</span>
         </button>
 
-        <div class="text-center mt-4 text-xs text-gray-400">
-            <p>Secured by {{ active_gateway|title }}</p>
-        </div>
-    </div>
-</div>
+        <p class="text-center mt-3 text-xs text-gray-400">
+          Secured by {{ active_gateway|default:"payment"|title }}
+        </p>
 
+        <p class="text-center mt-2 text-xs text-gray-400" x-show="saving" x-cloak>
+          Updating cart totals…
+        </p>
+
+        <p class="mt-3 text-xs text-red-600 font-semibold text-center" x-show="hasAnyError()" x-cloak>
+          Fix quantity issues above before paying.
+        </p>
+      </div>
+    </div>
+
+  </div>
+  {% endif %}
 </div>
-</div>
+{% endblock %}
+
+{% block extra_js %}
+{# ✅ Paystack Inline script (keeps user on your site) #}
+{% if active_gateway == "paystack" %}
+<script src="https://js.paystack.co/v1/inline.js"></script>
+{% endif %}
+
+<script>
+  function checkoutUI(cfg) {
+    const initSubtotal = Number(cfg.initSubtotal || 0);
+    const initVat = Number(cfg.initVat || 0);
+
+    return {
+      currency: cfg.currency || '₦',
+      items: cfg.items || {},
+      deliveryFee: Number(cfg.initDeliveryFee || 0),
+
+      // VAT rate derived from backend initial values
+      vatRate: initSubtotal > 0 ? (initVat / initSubtotal) : 0,
+
+      saving: false,
+      rowError: {},
+
+      money(v) {
+        const n = Number(v || 0);
+        return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      },
+
+      lineTotal(id) {
+        const it = this.items[id];
+        if (!it) return 0;
+        return Number(it.qty || 0) * Number(it.unit || 0);
+      },
+
+      itemsSubtotal() {
+        let sum = 0;
+        for (const k in this.items) sum += this.lineTotal(k);
+        return sum;
+      },
+
+      vatAmount() {
+        return this.itemsSubtotal() * this.vatRate;
+      },
+
+      grandTotal() {
+        return this.itemsSubtotal() + this.vatAmount() + Number(this.deliveryFee || 0);
+      },
+
+      hasAnyError() {
+        for (const k in this.rowError) {
+          if (this.rowError[k]) return true;
+        }
+        for (const k in this.items) {
+          const it = this.items[k];
+          if (!it || Number(it.qty || 0) < 1) return true;
+        }
+        return false;
+      },
+
+      inc(id) {
+        this.rowError[id] = '';
+        const it = this.items[id];
+        if (!it) return;
+
+        if (it.qty >= it.max) {
+          this.rowError[id] = 'Reached max available stock.';
+          return;
+        }
+        it.qty += 1;
+        this.syncQty(id);
+      },
+
+      dec(id) {
+        this.rowError[id] = '';
+        const it = this.items[id];
+        if (!it) return;
+
+        if (it.qty <= 1) return;
+        it.qty -= 1;
+        this.syncQty(id);
+      },
+
+      updateUrl(id) {
+        const base = "{% url 'update_cart_quantity' 0 %}";
+        return base.replace(/0\/?$/, `${id}/`);
+      },
+
+      async syncQty(id) {
+        this.saving = true;
+        this.rowError[id] = '';
+
+        try {
+          const fd = new FormData();
+          fd.append('qty', this.items[id].qty);
+
+          const res = await fetch(this.updateUrl(id), {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': this.csrf() }
+          });
+
+          const data = await res.json();
+          const ok = (data.ok === true) || (data.success === true);
+
+          if (!res.ok || !ok) {
+            this.rowError[id] = data.error || 'Could not update cart.';
+            return;
+          }
+
+          if (typeof data.quantity !== 'undefined') this.items[id].qty = Number(data.quantity);
+
+          if (typeof data.order_subtotal !== 'undefined' && typeof data.order_vat !== 'undefined') {
+            const sub = Number(data.order_subtotal || 0);
+            const vat = Number(data.order_vat || 0);
+            this.vatRate = sub > 0 ? (vat / sub) : 0;
+          }
+
+          if (typeof data.delivery_fee !== 'undefined') {
+            this.deliveryFee = Number(data.delivery_fee || 0);
+          }
+
+        } catch (e) {
+          this.rowError[id] = 'Network error updating cart.';
+        } finally {
+          this.saving = false;
+        }
+      },
+
+      csrf() {
+        const name = 'csrftoken=';
+        const parts = document.cookie.split(';');
+        for (let i = 0; i < parts.length; i++) {
+          const c = parts[i].trim();
+          if (c.startsWith(name)) return c.substring(name.length, c.length);
+        }
+        return '';
+      },
+
+      async payNow() {
+        const activeGateway = "{{ active_gateway|default:'paystack' }}";
+
+        // If not paystack, fallback to normal submit (your server handles it)
+        if (activeGateway !== "paystack") {
+          document.getElementById("checkout-form").submit();
+          return;
+        }
+
+        // HTML validation (required fields)
+        const form = document.getElementById("checkout-form");
+        if (form && form.reportValidity && !form.reportValidity()) return;
+
+        this.saving = true;
+
+        try {
+          const fd = new FormData(form);
+
+          const res = await fetch("{% url 'paystack_inline_init' %}", {
+            method: "POST",
+            body: fd,
+            headers: {
+              "X-Requested-With": "XMLHttpRequest",
+              "X-CSRFToken": this.csrf()
+            }
+          });
+
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            alert(data.error || "Could not start payment.");
+            return;
+          }
+
+          if (!data.public_key) {
+            alert("Paystack public key is missing. Add it in MarketplaceSetting (paystack_public_key).");
+            return;
+          }
+
+          const handler = PaystackPop.setup({
+            key: data.public_key,
+            email: data.email,
+            amount: data.amount_kobo,
+            currency: "NGN",
+            ref: data.reference,
+            access_code: data.access_code,
+
+            callback: function (response) {
+              // ✅ Always verify on your server
+              const url = "{% url 'verify_payment' %}" + "?reference=" + encodeURIComponent(response.reference);
+              window.location.href = url;
+            },
+
+            onClose: function () {
+              // user closed the popup
+            }
+          });
+
+          handler.openIframe();
+
+        } catch (e) {
+          alert("Network error starting payment.");
+        } finally {
+          this.saving = false;
+        }
+      }
+    }
+  }
+</script>
 {% endblock %}

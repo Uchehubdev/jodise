@@ -46,6 +46,7 @@ INSTALLED_APPS = [
 
     # Third-party apps
     'django_countries',
+    "django.contrib.humanize",
     'phonenumber_field',
     'allauth',
     'allauth.account',
@@ -78,7 +79,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
     # ✅ Your custom middleware for phone verification
-    'accounts.middleware.PhoneVerificationMiddleware',
+    #'accounts.middleware.PhoneVerificationMiddleware',
 ]
 
 ROOT_URLCONF = 'jodise.urls'
@@ -244,3 +245,5 @@ TWILIO_AUTH_TOKEN  = config("TWILIO_AUTH_TOKEN")
 TWILIO_FROM_NUMBER = config("TWILIO_NUMBER")
 TWILIO_NUMBER = config("TWILIO_NUMBER")
 
+PAYSTACK_SECRET_KEY = config("PAYSTACK_SECRET_KEY")
+PAYSTACK_PUBLIC_KEY= config("PAYSTACK_PUBLIC_KEY")

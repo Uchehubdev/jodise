@@ -10,7 +10,7 @@ class InvoiceService:
         # Ideally create 'store/invoice.html' that is print-friendly
         context = {'order': order}
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="invoice_{order.reference}.pdf"'
+        response['Content-Disposition'] = f'attachment; filename="invoice_{order.tracking_no}.pdf"'
         
         template = get_template(template_path)
         html = template.render(context)

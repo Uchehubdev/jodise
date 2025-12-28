@@ -1,161 +1,139 @@
-import requests
+# accounts/utils/paystack.py
 import logging
+from decimal import Decimal, InvalidOperation
+from typing import Any, Dict, Optional, Tuple
+
+import requests
 from django.conf import settings
-from decimal import Decimal
-
-# ============================================================
-# 🔐 PAYSTACK CONFIG
-# ============================================================
-# ============================================================
-# 🔐 PAYSTACK CONFIG
-# ============================================================
-def get_paystack_secret():
-    from store.models import MarketplaceSetting
-    config = MarketplaceSetting.objects.first()
-    if config and config.paystack_secret_key:
-        return config.paystack_secret_key
-    return getattr(settings, "PAYSTACK_SECRET_KEY", None)
-
-PAYSTACK_INITIALIZE_URL = "https://api.paystack.co/transaction/initialize"
-PAYSTACK_VERIFY_URL = "https://api.paystack.co/transaction/verify/"
-PAYSTACK_REFUND_URL = "https://api.paystack.co/refund"
 
 logger = logging.getLogger(__name__)
 
+PAYSTACK_INITIALIZE_URL = "https://api.paystack.co/transaction/initialize"
+PAYSTACK_VERIFY_URL = "https://api.paystack.co/transaction/verify/"
 
-# ============================================================
-# 🧾 INITIALIZE PAYMENT
-# ============================================================
-def initialize_payment(email: str, amount: Decimal, metadata: dict, callback_url: str):
-    """
-    Initialize a Paystack transaction securely.
-    Returns the redirect (authorization) URL if successful.
-    """
-    if not PAYSTACK_SECRET_KEY:
-        raise ValueError("Paystack secret key is missing in settings.")
 
-    if not email or not amount or amount <= 0:
-        raise ValueError("Invalid payment initialization parameters.")
+def _get_secret_key() -> str:
+    key = (getattr(settings, "PAYSTACK_SECRET_KEY", "") or "").strip()
+    if not key:
+        raise ValueError("PAYSTACK_SECRET_KEY is missing in settings.")
+    return key
 
-    headers = {
-        "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+
+def _headers() -> Dict[str, str]:
+    return {
+        "Authorization": f"Bearer {_get_secret_key()}",
         "Content-Type": "application/json",
     }
-    payload = {
+
+
+def _to_smallest_unit(amount: Any, decimals: int = 2) -> int:
+    try:
+        value = Decimal(str(amount))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError(f"Invalid amount: {amount}")
+
+    if value <= 0:
+        raise ValueError("Amount must be greater than 0.")
+
+    multiplier = Decimal(10) ** int(decimals)
+    # quantize to whole number, then int
+    return int((value * multiplier).quantize(Decimal("1")))
+
+
+def initialize_payment(
+    email: str,
+    amount: Any,
+    metadata: Optional[Dict[str, Any]] = None,
+    callback_url: Optional[str] = None,
+    currency: str = "NGN",
+    decimals: int = 2,
+    reference: Optional[str] = None,
+    timeout: int = 25,
+) -> Tuple[Optional[str], Optional[str], Optional[str], Dict[str, Any]]:
+    """
+    Returns:
+      (authorization_url, reference, access_code, raw_response_json)
+
+    IMPORTANT:
+    - If your Paystack account is NGN-only, you can omit currency completely.
+    """
+    if not email:
+        raise ValueError("Email is required.")
+
+    payload: Dict[str, Any] = {
         "email": email,
-        "amount": int(amount * 100),  # convert to kobo
+        "amount": _to_smallest_unit(amount, decimals=decimals),
         "metadata": metadata or {},
-        "callback_url": callback_url,
     }
+
+    # ✅ Only send currency if you truly need it (to avoid 400 on some setups)
+    if currency:
+        payload["currency"] = (currency or "NGN").upper()
+
+    # ✅ callback_url can cause 400 if malformed; only send if it’s a clean absolute URL
+    if callback_url:
+        payload["callback_url"] = callback_url
+
+    if reference:
+        payload["reference"] = reference
 
     try:
-        response = requests.post(PAYSTACK_INITIALIZE_URL, headers=headers, json=payload, timeout=20)
-        response.raise_for_status()
-        data = response.json()
-        if data.get("status") is True and data.get("data", {}).get("authorization_url"):
-            return data["data"]["authorization_url"]
-        logger.warning(f"Paystack init failed: {data.get('message')}")
-        return None
-    except requests.RequestException as e:
-        logger.error(f"Paystack initialization error: {e}")
-        return None
+        resp = requests.post(
+            PAYSTACK_INITIALIZE_URL,
+            headers=_headers(),
+            json=payload,
+            timeout=timeout,
+        )
 
+        # ✅ Always try to parse Paystack message (even when status != 200)
+        try:
+            data = resp.json() if resp.content else {}
+        except Exception:
+            data = {"raw": (resp.text or "").strip()}
 
-# ============================================================
-# 🔍 VERIFY PAYMENT
-# ============================================================
-def verify_payment(reference: str):
-    """
-    Verifies a Paystack transaction by reference.
-    Returns (True, response_data) if successful.
-    """
-    if not PAYSTACK_SECRET_KEY:
-        raise ValueError("Paystack secret key is missing in settings.")
+        if not resp.ok:
+            # This is what you NEED to see to fix 400
+            logger.error(
+                "Paystack init rejected (%s). payload=%s response=%s",
+                resp.status_code, payload, data
+            )
+            return None, None, None, data
 
-    headers = {
-        "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
-        "Content-Type": "application/json",
-    }
-
-    try:
-        response = requests.get(f"{PAYSTACK_VERIFY_URL}{reference}", headers=headers, timeout=20)
-        response.raise_for_status()
-        data = response.json()
-        status = data.get("data", {}).get("status") == "success"
-        return status, data
-    except requests.RequestException as e:
-        logger.error(f"Paystack verification error: {e}")
-        return False, None
-
-
-# ============================================================
-# 💸 PROCESS REFUND
-# ============================================================
-def process_refund(transaction_reference: str, amount: Decimal):
-    """
-    Creates a refund for a given transaction reference.
-    Returns True if the refund was successful.
-    """
-    if not PAYSTACK_SECRET_KEY:
-        raise ValueError("Paystack secret key is missing in settings.")
-    if not transaction_reference or amount <= 0:
-        raise ValueError("Invalid refund parameters.")
-
-    headers = {
-        "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "transaction": transaction_reference,
-        "amount": int(amount * 100),  # kobo
-    }
-
-    try:
-        response = requests.post(PAYSTACK_REFUND_URL, headers=headers, json=payload, timeout=20)
-        response.raise_for_status()
-        data = response.json()
         if data.get("status") is True:
-            logger.info(f"✅ Paystack refund success for {transaction_reference}")
-            return True
-        logger.warning(f"Refund failed: {data.get('message')}")
-        return False
+            d = data.get("data") or {}
+            return d.get("authorization_url"), d.get("reference"), d.get("access_code"), data
+
+        logger.warning("Paystack init failed: %s | %s", data.get("message"), data)
+        return None, None, None, data
+
     except requests.RequestException as e:
-        logger.error(f"Paystack refund error: {e}")
-        return False
+        logger.exception("Paystack initialization error: %s", str(e))
+        return None, None, None, {"error": str(e)}
 
 
-# ============================================================
-# 🧠 SAFE WRAPPER (RESILIENT CALLS)
-# ============================================================
-class PaystackManager:
-    """
-    Centralized wrapper for safer Paystack operations.
-    Use: PaystackManager().charge(...) or .refund(...)
-    """
+def verify_payment(reference: str, timeout: int = 25) -> Tuple[bool, Dict[str, Any]]:
+    if not reference:
+        return False, {"error": "Missing reference"}
 
-    def __init__(self, email=None):
-        self.email = email
+    try:
+        resp = requests.get(
+            f"{PAYSTACK_VERIFY_URL}{reference}",
+            headers=_headers(),
+            timeout=timeout,
+        )
 
-    def charge(self, amount, metadata, callback_url):
-        """Initialize and return redirect URL."""
         try:
-            return initialize_payment(self.email, amount, metadata, callback_url)
-        except Exception as e:
-            logger.error(f"Charge error: {e}")
-            return None
+            data = resp.json() if resp.content else {}
+        except Exception:
+            data = {"raw": (resp.text or "").strip()}
 
-    def confirm(self, reference):
-        """Verify and return (status, response_json)."""
-        try:
-            return verify_payment(reference)
-        except Exception as e:
-            logger.error(f"Confirm error: {e}")
-            return False, None
+        if not resp.ok:
+            logger.error("Paystack verify rejected (%s): %s", resp.status_code, data)
+            return False, data
 
-    def refund(self, reference, amount):
-        """Process refund for successful transaction."""
-        try:
-            return process_refund(reference, amount)
-        except Exception as e:
-            logger.error(f"Refund error: {e}")
-            return False
+        status = data.get("data", {}).get("status")
+        return status == "success", data
+
+    except requests.RequestException as e:
+        logger.exception("Paystack verification error: %s", str(e))
+        return False, {"error": str(e)}

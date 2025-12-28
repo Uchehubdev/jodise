@@ -1,169 +1,292 @@
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="theme-color" content="#f9ce34" />
+  <meta name="color-scheme" content="light" />
+
   <title>{% block title %}Jodise Marketplace{% endblock %}</title>
 
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  {# ---------------- SEO (safe defaults) ---------------- #}
+  <meta name="description" content="{% block meta_description %}Shop mega deals, trending products, and low prices on Jodise.{% endblock %}">
+  <meta name="robots" content="{% block meta_robots %}index,follow{% endblock %}">
+
+  {% block canonical %}
+    {% if request %}
+      <link rel="canonical" href="{{ request.build_absolute_uri|cut:request.get_full_path }}{{ request.path }}">
+    {% endif %}
+  {% endblock %}
+
+  {# ---------------- Open Graph / Twitter ---------------- #}
+  <meta property="og:site_name" content="Jodise" />
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}" />
+  <meta property="og:title" content="{% block og_title %}Jodise Marketplace{% endblock %}" />
+  <meta property="og:description" content="{% block og_description %}Shop mega deals, trending products, and low prices on Jodise.{% endblock %}" />
+  <meta property="og:image" content="{% block og_image %}{% static 'img/og-default.jpg' %}{% endblock %}" />
+  <meta property="og:url" content="{% block og_url %}{% if request %}{{ request.build_absolute_uri }}{% endif %}{% endblock %}" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{% block tw_title %}Jodise Marketplace{% endblock %}" />
+  <meta name="twitter:description" content="{% block tw_description %}Shop mega deals, trending products, and low prices on Jodise.{% endblock %}" />
+  <meta name="twitter:image" content="{% block tw_image %}{% static 'img/og-default.jpg' %}{% endblock %}" />
+
+  {# ---------------- Icons ---------------- #}
+  <link rel="icon" href="{% static 'favicon.ico' %}">
+  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}">
+
+  {# ---------------- Perf hints ---------------- #}
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+
+  {# Tailwind CDN (MVP). Later: replace with local build. #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
   <script src="https://unpkg.com/alpinejs" defer></script>
 
   <style>
-    :root {
-      --jodise-gold: #FFD700;
-      --jodise-deep-gold: #E6B800;
-      --jodise-deal: #f9ce34;
-      /* Temu Yellow/Orange vibe */
-      --jodise-accent: #fb7701;
-      /* Temu Orange */
-      --jodise-dark: #1A1A1A;
-      --jodise-bg: #f6f6f6;
-      /* Light gray background like Temu */
+    :root{
+      --jodise-gold:#FFD700;
+      --jodise-deep-gold:#E6B800;
+      --jodise-deal:#f9ce34;
+      --jodise-accent:#fb7701;
+      --jodise-dark:#111111;
+      --jodise-bg:#f6f6f6;
     }
+    .gold-gradient{background:linear-gradient(135deg,var(--jodise-gold),var(--jodise-deep-gold));}
+    .deal-gradient{background:linear-gradient(to right,var(--jodise-accent),var(--jodise-deal));}
+    .gold-text{color:var(--jodise-deep-gold);}
+    .gold-hover:hover{color:var(--jodise-gold);}
+    .bg-jodise{background:var(--jodise-bg);}
 
-    .gold-gradient {
-      background: linear-gradient(135deg, var(--jodise-gold), var(--jodise-deep-gold));
+    [x-cloak]{display:none !important;}
+
+    .skip-link{
+      position:absolute; left:-9999px; top:0;
+      background:#000; color:#fff; padding:10px 14px; z-index:9999; border-radius:10px;
     }
+    .skip-link:focus{ left:12px; top:12px; }
 
-    .deal-gradient {
-      background: linear-gradient(to right, #fb7701, #f9ce34);
-    }
+    .hide-scrollbar::-webkit-scrollbar{display:none;}
+    .hide-scrollbar{-ms-overflow-style:none; scrollbar-width:none;}
 
-    .gold-text {
-      color: var(--jodise-deep-gold);
-    }
+    /* Tailwind 2 fallback if you use line-clamp-* */
+    .line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+    .line-clamp-3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
 
-    .text-deal {
-      color: var(--jodise-accent);
-    }
-
-    .gold-hover:hover {
-      color: var(--jodise-gold);
-    }
-
-    /* Mobile sticky bottom nav adjustments */
-    body {
-      padding-bottom: 60px;
+    @media (max-width: 768px){
+      a, button { -webkit-tap-highlight-color: transparent; }
     }
   </style>
+
+  {% block extra_head %}{% endblock %}
 </head>
 
-<body class="bg-[color:var(--jodise-bg)] text-gray-900 min-h-screen flex flex-col font-sans">
+<body
+  class="bg-jodise text-gray-900 min-h-screen flex flex-col font-sans pb-20 md:pb-0"
+  x-data="{
+    mobileSearchOpen:false,
+    openSearch(){
+      this.mobileSearchOpen=true;
+      this.$nextTick(()=>{
+        const el=document.getElementById('mobileSearchInput');
+        if(el){ el.focus(); }
+      });
+    },
+    closeSearch(){ this.mobileSearchOpen=false; }
+  }"
+>
+  <a href="#main" class="skip-link">Skip to content</a>
 
-  <!-- 📣 PROMO BANNER -->
-  <div class="bg-black text-white text-center text-xs font-bold py-1 px-4 hidden md:block">
-    🚀 FREE SHIPPING on all orders over {{ currency_symbol }}15,000! <span class="text-yellow-400">Shop Now</span>
+  <noscript>
+    <div class="bg-yellow-100 text-yellow-900 text-sm px-4 py-3 text-center">
+      JavaScript is disabled. Some features (like mobile search drawer) may not work properly.
+    </div>
+  </noscript>
+
+  <!-- 📣 PROMO BANNER (Desktop) -->
+  <div class="hidden md:block bg-black text-white text-center text-xs font-bold py-1 px-4">
+    🚀 FREE SHIPPING on all orders over {{ currency_symbol|default:"₦" }}15,000!
+    <a href="{% url 'store_home' %}" class="text-yellow-400 underline ml-1">Shop Now</a>
   </div>
 
   <!-- 🖥️ DESKTOP HEADER -->
-  <header class="hidden md:block bg-white shadow-sm border-b border-yellow-100">
-    <div class="max-w-7xl mx-auto flex items-center justify-between px-6 py-3">
+  <header class="hidden md:block bg-white border-b border-yellow-100 shadow-sm">
+    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
       <!-- Logo -->
-      <a href="/" class="text-3xl font-extrabold tracking-wide gold-text">Jodise</a>
+      <a href="{% url 'store_home' %}" class="text-3xl font-extrabold tracking-wide gold-text">
+        Jodise
+      </a>
 
       <!-- Search -->
-      <form method="get" action="{% url 'search_products' %}"
-        class="flex w-1/2 bg-yellow-50 rounded-full overflow-hidden border border-yellow-200 focus-within:ring-2 focus-within:ring-yellow-400">
-        <input type="text" name="q" placeholder="Search for products, stores, or deals..."
-          class="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none text-gray-700">
-        <button type="submit"
-          class="gold-gradient text-white px-5 font-semibold hover:opacity-90 transition">Search</button>
+      <form method="get"
+            action="{% url 'search_products' %}"
+            class="flex w-1/2 bg-yellow-50 rounded-full overflow-hidden border border-yellow-200 focus-within:ring-2 focus-within:ring-yellow-400">
+        <label class="sr-only" for="desktopSearch">Search</label>
+        <input
+          id="desktopSearch"
+          type="text"
+          name="q"
+          value="{{ request.GET.q|default:'' }}"
+          placeholder="Search for products, stores, or deals..."
+          class="flex-1 bg-transparent px-4 py-2 text-sm text-gray-700 focus:outline-none"
+          autocomplete="off"
+        >
+        <button type="submit" class="gold-gradient text-white px-6 font-semibold hover:opacity-90 transition">
+          Search
+        </button>
       </form>
 
-      <!-- Quick Icons -->
-      <div class="flex items-center space-x-5 text-gray-700">
-        <a href="{% url 'view_cart' %}" class="gold-hover">🛒 Cart</a>
+      <!-- Quick Links -->
+      <nav class="flex items-center space-x-5 text-gray-700 text-sm font-semibold" aria-label="Top navigation">
+        <a href="{% url 'view_cart' %}" class="relative gold-hover">
+          🛒 Cart
+          {% with cc=cart_count|default:0 %}
+            {% if cc|add:0 > 0 %}
+              <span class="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full">
+                {{ cc }}
+              </span>
+            {% endif %}
+          {% endwith %}
+        </a>
+
         <a href="{% url 'view_wishlist' %}" class="gold-hover">❤️ Wishlist</a>
+
         {% if user.is_authenticated %}
-        <a href="{% url 'seller_dashboard' %}" class="gold-hover">🛍️ Seller</a>
-        <a href="{% url 'logout' %}" class="text-red-600 hover:text-red-700">Logout</a>
+          <a href="{% url 'seller_dashboard' %}" class="gold-hover">🛍️ Seller</a>
+          <a href="{% url 'logout' %}" class="text-red-600 hover:text-red-700">Logout</a>
         {% else %}
-        <a href="{% url 'login' %}"
-          class="gold-gradient text-white px-4 py-1 rounded-lg font-semibold hover:opacity-90">Login</a>
+          <a href="{% url 'login' %}" class="gold-gradient text-white px-4 py-2 rounded-xl font-semibold hover:opacity-90 transition">
+            Login
+          </a>
         {% endif %}
-      </div>
+      </nav>
     </div>
 
     <!-- Category Bar -->
     <div class="bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 text-white text-sm font-medium shadow-sm">
-      <div class="max-w-7xl mx-auto flex space-x-6 px-6 py-2 overflow-x-auto">
-        <a href="#" class="hover:text-gray-900 whitespace-nowrap">All</a>
-        <a href="#" class="hover:text-gray-900 whitespace-nowrap">Electronics</a>
-        <a href="#" class="hover:text-gray-900 whitespace-nowrap">Fashion</a>
-        <a href="#" class="hover:text-gray-900 whitespace-nowrap">Home & Kitchen</a>
-        <a href="#" class="hover:text-gray-900 whitespace-nowrap">Beauty</a>
-        <a href="#" class="hover:text-gray-900 whitespace-nowrap">Farm</a>
+      <div class="max-w-7xl mx-auto px-6 py-2 flex space-x-6 overflow-x-auto hide-scrollbar" aria-label="Categories">
+        <a href="{% url 'store_home' %}" class="hover:text-gray-900 whitespace-nowrap">All</a>
+
+        {% if categories %}
+          {% for cat in categories %}
+            <a href="{% url 'search_products' %}?category={{ cat.id }}" class="hover:text-gray-900 whitespace-nowrap">
+              {{ cat.name }}
+            </a>
+          {% endfor %}
+        {% else %}
+          <a href="{% url 'search_products' %}?q=electronics" class="hover:text-gray-900 whitespace-nowrap">Electronics</a>
+          <a href="{% url 'search_products' %}?q=fashion" class="hover:text-gray-900 whitespace-nowrap">Fashion</a>
+          <a href="{% url 'search_products' %}?q=home" class="hover:text-gray-900 whitespace-nowrap">Home & Kitchen</a>
+          <a href="{% url 'search_products' %}?q=beauty" class="hover:text-gray-900 whitespace-nowrap">Beauty</a>
+          <a href="{% url 'search_products' %}?q=farm" class="hover:text-gray-900 whitespace-nowrap">Farm</a>
+        {% endif %}
       </div>
     </div>
   </header>
 
   <!-- 📱 MOBILE HEADER -->
-  <header class="md:hidden gold-gradient text-white sticky top-0 z-50 shadow-lg">
-    <div class="flex items-center justify-between px-4 py-3">
-      <h1 class="text-xl font-bold">Jodise</h1>
-      <div class="flex space-x-4 text-lg">
-        <a href="{% url 'view_cart' %}">🛒</a>
-        <a href="{% url 'view_wishlist' %}">❤️</a>
+  <header class="md:hidden bg-white sticky top-0 z-50 shadow-sm border-b border-yellow-100">
+    <div class="px-4 py-3 flex items-center justify-between">
+      <a href="{% url 'store_home' %}" class="text-xl font-extrabold gold-text">Jodise</a>
+
+      <div class="flex items-center space-x-4 text-lg">
+        <button type="button" class="hover:opacity-80" aria-label="Search" @click="openSearch()">
+          🔍
+        </button>
+
+        <a href="{% url 'view_cart' %}" class="relative" aria-label="Cart">
+          🛒
+          {% with cc=cart_count|default:0 %}
+            {% if cc|add:0 > 0 %}
+              <span class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+                {{ cc }}
+              </span>
+            {% endif %}
+          {% endwith %}
+        </a>
+
+        <a href="{% url 'view_wishlist' %}" aria-label="Wishlist">❤️</a>
       </div>
+    </div>
+
+    <!-- Mobile search drawer -->
+    <div x-show="mobileSearchOpen" x-cloak class="px-4 pb-4" @keydown.escape.window="closeSearch()">
+      <form method="get" action="{% url 'search_products' %}" class="flex gap-2">
+        <input
+          id="mobileSearchInput"
+          type="text"
+          name="q"
+          value="{{ request.GET.q|default:'' }}"
+          placeholder="Search products..."
+          class="flex-1 bg-gray-100 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-yellow-400"
+          autocomplete="off"
+        >
+        <button type="submit" class="deal-gradient text-white px-4 rounded-full font-semibold">
+          Go
+        </button>
+        <button type="button" class="px-3" @click="closeSearch()" aria-label="Close search">✕</button>
+      </form>
     </div>
   </header>
 
   <!-- ⚠️ FLASH MESSAGES -->
   {% if messages %}
-  <div class="container mx-auto px-4 mt-2">
-    {% for message in messages %}
-    <div class="p-2 mb-2 text-sm rounded
-        {% if message.tags == 'success' %}bg-green-100 text-green-800
-        {% elif message.tags == 'error' %}bg-red-100 text-red-700
-        {% else %}bg-yellow-50 text-gray-700{% endif %}">
-      {{ message }}
+    <div class="max-w-7xl mx-auto px-4 md:px-6 mt-3">
+      {% for message in messages %}
+        <div x-data="{open:true}" x-show="open"
+             class="p-3 mb-2 text-sm rounded-xl border flex items-start justify-between gap-3
+              {% if message.tags == 'success' %}bg-green-50 border-green-200 text-green-800
+              {% elif message.tags == 'error' %}bg-red-50 border-red-200 text-red-700
+              {% else %}bg-yellow-50 border-yellow-200 text-gray-800{% endif %}">
+          <div class="min-w-0">{{ message }}</div>
+          <button type="button" class="text-gray-500 hover:text-gray-800" @click="open=false" aria-label="Close">✕</button>
+        </div>
+      {% endfor %}
     </div>
-    {% endfor %}
-  </div>
   {% endif %}
 
   <!-- MAIN CONTENT -->
-  <main class="flex-1">{% block content %}{% endblock %}</main>
+  <main id="main" class="flex-1">
+    {% block content %}{% endblock %}
+  </main>
 
   <!-- 📱 MOBILE BOTTOM NAV -->
-  <nav
-    class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-yellow-100 shadow-md flex justify-around text-gray-700 text-xs py-2">
-    <a href="/" class="flex flex-col items-center hover:text-yellow-500">
-      <span>🏠</span><span>Home</span>
+  <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-yellow-100 shadow-md flex justify-around text-gray-700 text-xs py-2 z-50"
+       aria-label="Bottom navigation">
+    <a href="{% url 'store_home' %}" class="flex flex-col items-center hover:text-yellow-600">
+      <span class="text-lg">🏠</span><span>Home</span>
     </a>
-    <a href="{% url 'search_products' %}" class="flex flex-col items-center hover:text-yellow-500">
-      <span>🔍</span><span>Search</span>
+
+    <button type="button" class="flex flex-col items-center hover:text-yellow-600" @click="openSearch()">
+      <span class="text-lg">🔍</span><span>Search</span>
+    </button>
+
+    <a href="{% url 'view_cart' %}" class="flex flex-col items-center hover:text-yellow-600">
+      <span class="text-lg">🛒</span><span>Cart</span>
     </a>
-    <a href="{% url 'view_cart' %}" class="flex flex-col items-center hover:text-yellow-500">
-      <span>🛒</span><span>Cart</span>
-    </a>
+
     {% if user.is_authenticated %}
-    <a href="{% url 'seller_dashboard' %}" class="flex flex-col items-center hover:text-yellow-500">
-      <span>🛍️</span><span>Seller</span>
-    </a>
+      <a href="{% url 'seller_dashboard' %}" class="flex flex-col items-center hover:text-yellow-600">
+        <span class="text-lg">🛍️</span><span>Seller</span>
+      </a>
     {% else %}
-    <a href="{% url 'login' %}" class="flex flex-col items-center hover:text-yellow-500">
-      <span>👤</span><span>Login</span>
-    </a>
+      <a href="{% url 'login' %}" class="flex flex-col items-center hover:text-yellow-600">
+        <span class="text-lg">👤</span><span>Login</span>
+      </a>
     {% endif %}
   </nav>
 
-  <!-- ⚙️ FOOTER (GOLD STYLE) -->
-
-  <!-- ⚙️ JODISE GOLD FOOTER - HIGH CONTRAST EDITION -->
+  <!-- ⚙️ FOOTER -->
   <footer class="relative text-sm mt-10">
-    <!-- Gold Top Border -->
     <div class="h-1 w-full bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-600"></div>
 
-    <div class="bg-[#111111] text-gray-300 pt-12 pb-10">
+    <div class="bg-gray-900 text-gray-300 pt-12 pb-10">
       <div class="max-w-7xl mx-auto px-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-10 text-left">
-
-        <!-- Column 1 -->
         <div>
           <h4 class="text-yellow-400 font-semibold mb-3 text-base uppercase tracking-wide">Company</h4>
-          <ul class="space-y-2 text-gray-300">
+          <ul class="space-y-2">
             <li><a href="#" class="hover:text-yellow-300 transition">About Jodise</a></li>
             <li><a href="#" class="hover:text-yellow-300 transition">Our Vision</a></li>
             <li><a href="#" class="hover:text-yellow-300 transition">Press & Media</a></li>
@@ -171,22 +294,20 @@
           </ul>
         </div>
 
-        <!-- Column 2 -->
         <div>
           <h4 class="text-yellow-400 font-semibold mb-3 text-base uppercase tracking-wide">Support</h4>
-          <ul class="space-y-2 text-gray-300">
+          <ul class="space-y-2">
             <li><a href="#" class="hover:text-yellow-300 transition">Help Center</a></li>
             <li><a href="#" class="hover:text-yellow-300 transition">Returns & Refunds</a></li>
-            <li><a href="#" class="hover:text-yellow-300 transition">Track Order</a></li>
+            <li><a href="{% url 'track_order' %}" class="hover:text-yellow-300 transition">Track Order</a></li>
             <li><a href="#" class="hover:text-yellow-300 transition">Shipping Info</a></li>
             <li><a href="#" class="hover:text-yellow-300 transition">Report an Issue</a></li>
           </ul>
         </div>
 
-        <!-- Column 3 -->
         <div>
           <h4 class="text-yellow-400 font-semibold mb-3 text-base uppercase tracking-wide">Policies</h4>
-          <ul class="space-y-2 text-gray-300">
+          <ul class="space-y-2">
             <li><a href="#" class="hover:text-yellow-300 transition">Terms of Use</a></li>
             <li><a href="#" class="hover:text-yellow-300 transition">Privacy Policy</a></li>
             <li><a href="#" class="hover:text-yellow-300 transition">Seller Policy</a></li>
@@ -194,31 +315,32 @@
           </ul>
         </div>
 
-        <!-- Column 4 -->
         <div>
           <h4 class="text-yellow-400 font-semibold mb-3 text-base uppercase tracking-wide">For Sellers</h4>
-          <ul class="space-y-2 text-gray-300">
+          <ul class="space-y-2">
             <li><a href="#" class="hover:text-yellow-300 transition">Become a Seller</a></li>
-            <li><a href="#" class="hover:text-yellow-300 transition">Seller Dashboard</a></li>
+            <li><a href="{% url 'seller_dashboard' %}" class="hover:text-yellow-300 transition">Seller Dashboard</a></li>
             <li><a href="#" class="hover:text-yellow-300 transition">Commission & VAT</a></li>
           </ul>
-          <div class="mt-5 bg-[#1c1c1c] border border-gray-700 rounded-lg p-3">
-            <p class="text-sm text-gray-300 mb-2">Start selling to millions on Jodise</p>
-            <a href="#"
-              class="inline-block bg-gradient-to-r from-yellow-500 to-amber-400 text-black font-semibold text-sm px-4 py-2 rounded-md hover:brightness-110 transition">
+
+          <div class="mt-5 bg-gray-800 border border-gray-700 rounded-xl p-3">
+            <p class="text-sm text-gray-200 mb-2">Start selling to millions on Jodise</p>
+            <a href="{% url 'seller_dashboard' %}"
+               class="inline-block bg-gradient-to-r from-yellow-500 to-amber-400 text-black font-semibold text-sm px-4 py-2 rounded-lg hover:opacity-90 transition">
               Start Selling
             </a>
           </div>
         </div>
 
-        <!-- Column 5 -->
         <div>
           <h4 class="text-yellow-400 font-semibold mb-3 text-base uppercase tracking-wide">Download App</h4>
           <div class="flex flex-wrap gap-3 mb-3">
-            <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/6/67/App_Store_%28iOS%29.svg"
-                class="h-10" alt="App Store"></a>
-            <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
-                class="h-10" alt="Google Play"></a>
+            <a href="#">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/6/67/App_Store_%28iOS%29.svg" class="h-10" alt="App Store">
+            </a>
+            <a href="#">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" class="h-10" alt="Google Play">
+            </a>
           </div>
           <ul class="text-xs text-gray-400 space-y-1">
             <li>⚡ Fast & secure checkout</li>
@@ -228,54 +350,22 @@
         </div>
       </div>
 
-      <!-- Divider -->
       <div class="border-t border-gray-700 w-3/4 mx-auto mt-10 mb-6"></div>
 
-      <!-- Social Links -->
       <div class="flex justify-center space-x-6 text-lg mb-4">
-        <a href="#" class="hover:text-yellow-400 transition">📘</a>
-        <a href="#" class="hover:text-yellow-400 transition">📸</a>
-        <a href="#" class="hover:text-yellow-400 transition">🐦</a>
-        <a href="#" class="hover:text-yellow-400 transition">🎥</a>
+        <a href="#" class="hover:text-yellow-400 transition" aria-label="Facebook">📘</a>
+        <a href="#" class="hover:text-yellow-400 transition" aria-label="Instagram">📸</a>
+        <a href="#" class="hover:text-yellow-400 transition" aria-label="Twitter">🐦</a>
+        <a href="#" class="hover:text-yellow-400 transition" aria-label="YouTube">🎥</a>
       </div>
 
-      <!-- Copyright -->
       <p class="text-gray-400 text-xs text-center">
-        © {{ now|date:"Y" }} <span class="text-yellow-400 font-semibold">Jodise Marketplace</span> — Smart Shopping •
-        Global Sellers • Premium Service
+        © {% now "Y" %} <span class="text-yellow-400 font-semibold">Jodise Marketplace</span>
+        — Smart Shopping • Global Sellers • Premium Service
       </p>
     </div>
   </footer>
 
-  <!-- 🌟 Footer Link Animation -->
-  <style>
-    .footer-link {
-      color: #d1d5db;
-      position: relative;
-      transition: color 0.3s ease;
-    }
-
-    .footer-link::after {
-      content: "";
-      position: absolute;
-      left: 0;
-      bottom: -2px;
-      width: 0;
-      height: 2px;
-      background: linear-gradient(90deg, #FFD700, #FFB700);
-      transition: width 0.3s;
-    }
-
-    .footer-link:hover {
-      color: #FFD700;
-    }
-
-    .footer-link:hover::after {
-      width: 100%;
-    }
-  </style>
-
-
+  {% block extra_js %}{% endblock %}
 </body>
-
 </html>

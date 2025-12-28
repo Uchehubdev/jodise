@@ -85,7 +85,7 @@
         </div>
         <div class="content">
             <p>Hi {{ order.buyer.first_name }},</p>
-            <p>Thank you for shopping with Jodise! Your order <strong>#{{ order.reference }}</strong> has been
+            <p>Thank you for shopping with Jodise! Your order <strong>#{{ order.tracking_no }}</strong> has been
                 successfully placed.</p>
 
             <table class="order-details">
@@ -94,7 +94,7 @@
         </div>
 
         <div style="text-align: center;">
-            <a href="http://127.0.0.1:8000/accounts/dashboard/" class="btn">Track Your Order</a>
+            <a href="{{ url 'track_order' }}" class="btn">Track Your Order</a>
         </div>
 
         <p style="margin-top:20px; font-size:14px; color:#555;">

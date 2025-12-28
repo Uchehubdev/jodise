@@ -22,7 +22,7 @@ from django.conf.urls.static import static
 
 
 urlpatterns = [
-    path("", include("store.urls")),  # ✅ must come last or first,
+    path("", include("store.urls")),
     path('admin/', admin.site.urls),
     # 🌍 Store = main application home
     path('accounts/', include('accounts.urls')),        # custom auth views
