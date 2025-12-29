@@ -1,0 +1,447 @@
+{# templates/store/cart.html #}
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Cart{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 pb-28">
+
+  <!-- Header -->
+  <section class="bg-white border-b border-gray-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="min-w-0">
+          <h1 class="text-xl sm:text-2xl font-extrabold text-gray-900 truncate">
+            🛒 Your Cart
+          </h1>
+          <p class="text-sm text-gray-600 mt-1">
+            {% if items %}
+              <span id="cart-count-text">{{ cart_count|intcomma }}</span> item{{ cart_count|pluralize }} in your cart
+            {% else %}
+              Your cart is empty
+            {% endif %}
+          </p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <a href="{% url 'store_home' %}"
+             class="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm">
+            🏠 Continue shopping
+          </a>
+
+          {% if items %}
+            <a href="{% url 'checkout_view' %}"
+               class="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
+              ✅ Checkout
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    {% if items %}
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Cart Items -->
+        <div class="lg:col-span-8 space-y-4">
+          <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 class="text-base sm:text-lg font-extrabold text-gray-900">Items</h2>
+              <span class="text-xs text-gray-500">Prices update instantly</span>
+            </div>
+
+            <div class="divide-y divide-gray-100">
+              {% for item in items %}
+                <div id="cart-row-{{ item.id }}" class="p-4 sm:p-6">
+                  <div class="flex gap-4">
+
+                    <!-- Image -->
+                    <a href="{{ item.product.get_absolute_url }}" class="shrink-0">
+                      <div class="w-24 h-20 sm:w-28 sm:h-24 rounded-xl bg-gray-100 overflow-hidden border border-gray-200">
+                        {% with img=item.product.images.all|first %}
+                          {% if img and img.image %}
+                            <img src="{{ img.image.url }}"
+                                 alt="{{ img.alt_text|default:item.product.name }}"
+                                 class="w-full h-full object-cover" />
+                          {% else %}
+                            <div class="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                              No image
+                            </div>
+                          {% endif %}
+                        {% endwith %}
+                      </div>
+                    </a>
+
+                    <!-- Details -->
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                          <a href="{{ item.product.get_absolute_url }}"
+                             class="block font-extrabold text-gray-900 text-sm sm:text-base leading-snug line-clamp-2 hover:text-emerald-700">
+                            {{ item.product.name }}
+                          </a>
+
+                          <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                            <span class="inline-flex items-center gap-1">
+                              🏪
+                              {% if item.seller and item.seller.store_name %}
+                                {{ item.seller.store_name }}
+                              {% else %}
+                                Seller
+                              {% endif %}
+                            </span>
+
+                            {% if item.product.category %}
+                              <span class="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 font-semibold text-gray-700">
+                                {{ item.product.category.name }}
+                              </span>
+                            {% endif %}
+
+                            {% if item.product.stock|default:0 <= 0 %}
+                              <span class="inline-flex rounded-full bg-red-50 text-red-700 border border-red-100 px-2.5 py-1 font-bold">
+                                Out of stock
+                              </span>
+                            {% elif item.product.stock|default:0 < 5 %}
+                              <span class="inline-flex rounded-full bg-amber-50 text-amber-800 border border-amber-100 px-2.5 py-1 font-bold">
+                                Low stock ({{ item.product.stock }})
+                              </span>
+                            {% else %}
+                              <span class="inline-flex rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1 font-bold">
+                                In stock
+                              </span>
+                            {% endif %}
+                          </div>
+                        </div>
+
+                        <!-- Remove -->
+                        <a href="{% url 'remove_from_cart' item.id %}"
+                           class="shrink-0 inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-800 hover:bg-gray-50">
+                          ✖ Remove
+                        </a>
+                      </div>
+
+                      <!-- Price + Quantity -->
+                      <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                          <div class="text-sm">
+                            <div class="text-xs text-gray-500">Unit price</div>
+                            <div class="font-extrabold text-gray-900">
+                              {{ currency_symbol }}{{ item.unit_price|floatformat:2|intcomma }}
+                            </div>
+                          </div>
+
+                          <div class="hidden sm:block w-px h-10 bg-gray-200"></div>
+
+                          <div class="text-sm">
+                            <div class="text-xs text-gray-500">Subtotal</div>
+                            <div id="item-subtotal-{{ item.id }}" class="font-extrabold text-emerald-700">
+                              {{ currency_symbol }}{{ item.subtotal|floatformat:2|intcomma }}
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Quantity controls (AJAX) -->
+                        <div class="flex items-center gap-2">
+                          <div class="inline-flex items-center rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                            <button
+                              type="button"
+                              class="px-3 py-2 text-sm font-extrabold text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                              aria-label="Decrease quantity"
+                              data-action="dec"
+                              data-item-id="{{ item.id }}"
+                              data-max="{{ item.product.stock|default:0 }}"
+                            >−</button>
+
+                            <input
+                              id="qty-{{ item.id }}"
+                              type="number"
+                              inputmode="numeric"
+                              min="1"
+                              max="{{ item.product.stock|default:0 }}"
+                              value="{{ item.quantity }}"
+                              class="w-14 text-center text-sm font-bold text-gray-900 border-x border-gray-200 py-2 focus:outline-none"
+                              data-item-id="{{ item.id }}"
+                              data-max="{{ item.product.stock|default:0 }}"
+                            />
+
+                            <button
+                              type="button"
+                              class="px-3 py-2 text-sm font-extrabold text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                              aria-label="Increase quantity"
+                              data-action="inc"
+                              data-item-id="{{ item.id }}"
+                              data-max="{{ item.product.stock|default:0 }}"
+                            >+</button>
+                          </div>
+
+                          <span id="qty-status-{{ item.id }}" class="text-xs text-gray-500"></span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 sm:p-6">
+            <h3 class="text-sm font-extrabold text-gray-900">Notes</h3>
+            <p class="mt-1 text-sm text-gray-600">
+              Delivery fee is calculated based on your selected delivery method at checkout.
+              VAT may apply depending on marketplace settings.
+            </p>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <aside class="lg:col-span-4">
+          <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 sm:p-6 lg:sticky lg:top-24">
+            <h2 class="text-base sm:text-lg font-extrabold text-gray-900">Order Summary</h2>
+
+            <div class="mt-4 space-y-3 text-sm">
+              <div class="flex items-center justify-between">
+                <span class="text-gray-600">Subtotal</span>
+                <span id="order-subtotal" class="font-extrabold text-gray-900">
+                  {{ currency_symbol }}{{ order.subtotal|floatformat:2|intcomma }}
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <span class="text-gray-600">VAT</span>
+                <span id="order-vat" class="font-extrabold text-gray-900">
+                  {{ currency_symbol }}{{ order.vat|default:0|floatformat:2|intcomma }}
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <span class="text-gray-600">Delivery fee</span>
+                <span id="order-delivery" class="font-extrabold text-gray-900">
+                  {{ currency_symbol }}{{ order.delivery_fee|default:0|floatformat:2|intcomma }}
+                </span>
+              </div>
+
+              <div class="h-px bg-gray-200 my-2"></div>
+
+              <div class="flex items-center justify-between">
+                <span class="text-gray-900 font-extrabold">Total</span>
+                <span id="order-total" class="text-lg font-extrabold text-emerald-700">
+                  {{ currency_symbol }}{{ order.total|default:0|floatformat:2|intcomma }}
+                </span>
+              </div>
+            </div>
+
+            <a href="{% url 'checkout_view' %}"
+               class="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-emerald-700 shadow-sm">
+              ✅ Proceed to Checkout
+            </a>
+
+            <a href="{% url 'store_home' %}"
+               class="mt-2 inline-flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+              Continue shopping
+            </a>
+
+            <p class="mt-4 text-xs text-gray-500">
+              Secure checkout. Your order remains pending until payment is completed.
+            </p>
+          </div>
+        </aside>
+
+      </div>
+
+      <!-- Mobile sticky bottom bar -->
+      <div class="lg:hidden fixed bottom-0 left-0 right-0 z-40">
+        <div class="bg-white border-t border-gray-200 px-4 py-3">
+          <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-xs text-gray-500">Total</div>
+              <div id="order-total-mobile" class="font-extrabold text-emerald-700 truncate">
+                {{ currency_symbol }}{{ order.total|default:0|floatformat:2|intcomma }}
+              </div>
+            </div>
+            <a href="{% url 'checkout_view' %}"
+               class="shrink-0 inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-extrabold text-white hover:bg-emerald-700">
+              Checkout
+            </a>
+          </div>
+        </div>
+      </div>
+
+    {% else %}
+      <!-- Empty State -->
+      <div class="bg-white border border-gray-200 rounded-2xl p-8 text-center shadow-sm">
+        <div class="text-5xl">🧺</div>
+        <h2 class="mt-3 text-lg font-extrabold text-gray-900">Your cart is empty</h2>
+        <p class="mt-2 text-sm text-gray-600 max-w-md mx-auto">
+          Start adding items to your cart to see them here.
+        </p>
+        <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2">
+          <a href="{% url 'store_home' %}"
+             class="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-extrabold text-white hover:bg-emerald-700">
+            Browse products
+          </a>
+          <a href="{% url 'search_products' %}"
+             class="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            Search
+          </a>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+</div>
+
+<script>
+(function () {
+  // ------- CSRF helper (Django cookie) -------
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return "";
+  }
+  const csrftoken = getCookie("csrftoken");
+
+  // ------- Money formatter (basic) -------
+  const CURRENCY = "{{ currency_symbol|escapejs }}";
+  function fmtMoney(n) {
+    try {
+      const num = Number(n || 0);
+      return CURRENCY + num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } catch (e) {
+      return CURRENCY + "0.00";
+    }
+  }
+
+  async function postQty(itemId, qty) {
+    const url = "{% url 'update_cart_quantity' 999999 %}".replace("999999", itemId);
+    const body = new URLSearchParams();
+    body.append("qty", String(qty));
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        "X-CSRFToken": csrftoken,
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: body.toString(),
+      credentials: "same-origin",
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data || data.ok === false) {
+      throw new Error((data && data.error) ? data.error : "Failed to update cart.");
+    }
+    return data;
+  }
+
+  function setBusy(itemId, busy, msg) {
+    const status = document.getElementById(`qty-status-${itemId}`);
+    if (status) status.textContent = msg || (busy ? "Updating..." : "");
+  }
+
+  function updateTotals(data) {
+    // update summary amounts (if present)
+    const elSub = document.getElementById("order-subtotal");
+    const elVat = document.getElementById("order-vat");
+    const elDel = document.getElementById("order-delivery");
+    const elTot = document.getElementById("order-total");
+    const elTotM = document.getElementById("order-total-mobile");
+
+    if (typeof data.order_subtotal !== "undefined" && elSub) elSub.textContent = fmtMoney(data.order_subtotal);
+    if (typeof data.order_vat !== "undefined" && elVat) elVat.textContent = fmtMoney(data.order_vat);
+    if (typeof data.delivery_fee !== "undefined" && elDel) elDel.textContent = fmtMoney(data.delivery_fee);
+    if (typeof data.order_total !== "undefined" && elTot) elTot.textContent = fmtMoney(data.order_total);
+    if (typeof data.order_total !== "undefined" && elTotM) elTotM.textContent = fmtMoney(data.order_total);
+
+    // cart count (if your base has a badge id, we update it too)
+    if (typeof data.cart_count !== "undefined") {
+      const badge = document.getElementById("cart-count-badge");
+      if (badge) badge.textContent = String(data.cart_count);
+      const txt = document.getElementById("cart-count-text");
+      if (txt) txt.textContent = String(data.cart_count);
+    }
+  }
+
+  function updateRow(itemId, data) {
+    // if item removed, delete row
+    if (data.removed || data.deleted || (data.quantity === 0)) {
+      const row = document.getElementById(`cart-row-${itemId}`);
+      if (row) row.remove();
+      return;
+    }
+
+    // update qty input and subtotal
+    const qtyInput = document.getElementById(`qty-${itemId}`);
+    if (qtyInput && typeof data.quantity !== "undefined") qtyInput.value = String(data.quantity);
+
+    const subtotalEl = document.getElementById(`item-subtotal-${itemId}`);
+    if (subtotalEl && typeof data.item_subtotal !== "undefined") subtotalEl.textContent = fmtMoney(data.item_subtotal);
+  }
+
+  async function applyQty(itemId, qty, max) {
+    qty = Number(qty);
+    if (!Number.isFinite(qty)) qty = 1;
+    if (qty < 0) qty = 0;
+    if (max && qty > max) qty = max;
+
+    setBusy(itemId, true, "Updating...");
+    try {
+      const data = await postQty(itemId, qty);
+      updateRow(itemId, data);
+      updateTotals(data);
+      setBusy(itemId, false, "Saved");
+      setTimeout(() => setBusy(itemId, false, ""), 900);
+    } catch (err) {
+      setBusy(itemId, false, err.message || "Error");
+      setTimeout(() => setBusy(itemId, false, ""), 1600);
+    }
+  }
+
+  // Buttons + inputs
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest("button[data-action][data-item-id]");
+    if (!btn) return;
+
+    const itemId = btn.getAttribute("data-item-id");
+    const action = btn.getAttribute("data-action");
+    const max = Number(btn.getAttribute("data-max") || 0);
+
+    const input = document.getElementById(`qty-${itemId}`);
+    if (!input) return;
+
+    let current = Number(input.value || 1);
+    if (!Number.isFinite(current)) current = 1;
+
+    if (action === "inc") current += 1;
+    if (action === "dec") current -= 1;
+
+    // if goes below 1, we remove item (qty=0)
+    if (current < 1) current = 0;
+
+    input.value = String(current);
+    applyQty(itemId, current, max);
+  });
+
+  // manual typing (debounced)
+  let t = null;
+  document.addEventListener("input", function (e) {
+    const input = e.target.closest("input[data-item-id]");
+    if (!input) return;
+
+    const itemId = input.getAttribute("data-item-id");
+    const max = Number(input.getAttribute("data-max") || 0);
+
+    clearTimeout(t);
+    t = setTimeout(() => {
+      const val = Number(input.value || 1);
+      applyQty(itemId, val, max);
+    }, 450);
+  });
+})();
+</script>
+{% endblock %}

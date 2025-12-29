@@ -1,0 +1,343 @@
+{# templates/store/search_results.html #}
+{% extends "base.html" %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}
+  {% if query %}Search: {{ query }}{% else %}Search Products{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+  <!-- Header / Search -->
+  <section class="border-b bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="flex flex-col gap-4">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+              {% if query %}
+                Results for “{{ query }}”
+              {% else %}
+                Browse products
+              {% endif %}
+            </h1>
+            <p class="text-sm text-gray-600 mt-1">
+              {% if products %}
+                {{ products.paginator.count|intcomma }} product{{ products.paginator.count|pluralize }} found
+              {% else %}
+                No results yet
+              {% endif %}
+            </p>
+          </div>
+
+          <a href="{% url 'store_home' %}"
+             class="hidden sm:inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50">
+            <span class="text-lg">🏠</span>
+            Home
+          </a>
+        </div>
+
+        {# Unified GET form: q + filters #}
+        <form method="get" action="{% url 'search_products' %}" class="w-full">
+          <div class="flex flex-col lg:flex-row gap-3">
+            <!-- Search bar -->
+            <div class="flex-1">
+              <label class="sr-only" for="q">Search</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
+                  🔎
+                </span>
+                <input
+                  id="q"
+                  name="q"
+                  value="{{ query|default_if_none:'' }}"
+                  placeholder="Search products, categories, sellers..."
+                  class="w-full rounded-2xl border border-gray-200 bg-white pl-12 pr-4 py-3 text-sm sm:text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-400"
+                />
+              </div>
+            </div>
+
+            <!-- Filters (mobile-friendly) -->
+            <details class="lg:hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              <summary class="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-gray-800 flex items-center justify-between">
+                <span>Filters</span>
+                <span class="text-gray-400">▾</span>
+              </summary>
+              <div class="px-4 pb-4 pt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Min price</label>
+                  <input name="min" inputmode="decimal" value="{{ request.GET.min|default_if_none:'' }}"
+                         class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                         placeholder="0" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Max price</label>
+                  <input name="max" inputmode="decimal" value="{{ request.GET.max|default_if_none:'' }}"
+                         class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                         placeholder="999999" />
+                </div>
+
+                {% if categories %}
+                <div class="sm:col-span-1">
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Category</label>
+                  <select name="category"
+                          class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
+                    <option value="">All</option>
+                    {% for c in categories %}
+                      <option value="{{ c.id }}" {% if request.GET.category == c.id|stringformat:"s" %}selected{% endif %}>
+                        {{ c.name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                {% endif %}
+
+                <div class="sm:col-span-3 flex gap-2 pt-1">
+                  <button type="submit"
+                          class="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
+                    Apply
+                  </button>
+                  <a href="{% url 'search_products' %}{% if query %}?q={{ query|urlencode }}{% endif %}"
+                     class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50">
+                    Clear
+                  </a>
+                </div>
+              </div>
+            </details>
+
+            <!-- Desktop filters -->
+            <div class="hidden lg:flex items-center gap-3">
+              <div class="w-40">
+                <label class="sr-only">Min price</label>
+                <input name="min" inputmode="decimal" value="{{ request.GET.min|default_if_none:'' }}"
+                       class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                       placeholder="Min" />
+              </div>
+              <div class="w-40">
+                <label class="sr-only">Max price</label>
+                <input name="max" inputmode="decimal" value="{{ request.GET.max|default_if_none:'' }}"
+                       class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                       placeholder="Max" />
+              </div>
+
+              {% if categories %}
+              <div class="w-56">
+                <label class="sr-only">Category</label>
+                <select name="category"
+                        class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
+                  <option value="">All categories</option>
+                  {% for c in categories %}
+                    <option value="{{ c.id }}" {% if request.GET.category == c.id|stringformat:"s" %}selected{% endif %}>
+                      {{ c.name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% endif %}
+
+              <button type="submit"
+                      class="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
+                Search
+              </button>
+
+              <a href="{% url 'search_products' %}{% if query %}?q={{ query|urlencode }}{% endif %}"
+                 class="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm">
+                Clear
+              </a>
+            </div>
+
+            <!-- Mobile submit -->
+            <button type="submit"
+                    class="lg:hidden rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
+              Search
+            </button>
+          </div>
+        </form>
+
+        <!-- Active filter chips -->
+        <div class="flex flex-wrap gap-2">
+          {% if query %}
+            <span class="inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1 text-xs font-semibold">
+              Query: {{ query }}
+              <a class="text-emerald-700 hover:text-emerald-900"
+                 href="{% url 'search_products' %}">✕</a>
+            </span>
+          {% endif %}
+          {% if request.GET.min %}
+            <span class="inline-flex items-center gap-2 rounded-full bg-gray-100 text-gray-800 border border-gray-200 px-3 py-1 text-xs font-semibold">
+              Min: {{ currency_symbol }}{{ request.GET.min }}
+            </span>
+          {% endif %}
+          {% if request.GET.max %}
+            <span class="inline-flex items-center gap-2 rounded-full bg-gray-100 text-gray-800 border border-gray-200 px-3 py-1 text-xs font-semibold">
+              Max: {{ currency_symbol }}{{ request.GET.max }}
+            </span>
+          {% endif %}
+          {% if request.GET.category %}
+            <span class="inline-flex items-center gap-2 rounded-full bg-gray-100 text-gray-800 border border-gray-200 px-3 py-1 text-xs font-semibold">
+              Category filter active
+            </span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Results Grid -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    {% if products and products.object_list %}
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+        {% for product in products %}
+          <a href="{{ product.get_absolute_url }}"
+             class="group block bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition overflow-hidden">
+            <!-- Image -->
+            <div class="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+              {% with first_image=product.images.all|first %}
+                {% if first_image and first_image.image %}
+                  <img src="{{ first_image.image.url }}"
+                       alt="{{ first_image.alt_text|default:product.name }}"
+                       class="h-full w-full object-cover group-hover:scale-[1.03] transition duration-300" />
+                {% else %}
+                  <div class="h-full w-full flex items-center justify-center text-gray-400 text-sm">
+                    No image
+                  </div>
+                {% endif %}
+              {% endwith %}
+
+              {% if product.stock|default:0 <= 0 %}
+                <span class="absolute top-3 left-3 rounded-full bg-red-600 px-3 py-1 text-[11px] font-bold text-white">
+                  Out of stock
+                </span>
+              {% elif product.stock|default:0 < 5 %}
+                <span class="absolute top-3 left-3 rounded-full bg-amber-500 px-3 py-1 text-[11px] font-bold text-white">
+                  Low stock
+                </span>
+              {% endif %}
+
+              {% if product.is_featured %}
+                <span class="absolute top-3 right-3 rounded-full bg-gray-900/90 px-3 py-1 text-[11px] font-bold text-white">
+                  Featured
+                </span>
+              {% endif %}
+            </div>
+
+            <!-- Body -->
+            <div class="p-3 sm:p-4">
+              <div class="flex items-start justify-between gap-2">
+                <h3 class="text-sm sm:text-base font-bold text-gray-900 leading-snug line-clamp-2">
+                  {{ product.name }}
+                </h3>
+              </div>
+
+              <div class="mt-2 flex items-center justify-between gap-2">
+                <p class="text-base sm:text-lg font-extrabold text-emerald-700">
+                  {{ currency_symbol }}{{ product.price|floatformat:2|intcomma }}
+                </p>
+                {% if product.category %}
+                  <span class="hidden sm:inline-flex rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
+                    {{ product.category.name }}
+                  </span>
+                {% endif %}
+              </div>
+
+              <div class="mt-2 flex items-center justify-between gap-2">
+                <p class="text-xs text-gray-600 truncate">
+                  {% if product.seller and product.seller.store_name %}
+                    🏪 {{ product.seller.store_name }}
+                  {% else %}
+                    Seller
+                  {% endif %}
+                </p>
+
+                <span class="text-xs text-gray-500">
+                  SKU: {{ product.sku|default:"—" }}
+                </span>
+              </div>
+
+              <div class="mt-3">
+                <span class="inline-flex w-full items-center justify-center rounded-xl bg-gray-900 px-3 py-2 text-xs sm:text-sm font-semibold text-white group-hover:bg-emerald-700 transition">
+                  View product
+                </span>
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+
+      <!-- Pagination -->
+      {% if products.paginator.num_pages > 1 %}
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p class="text-sm text-gray-600">
+            Page <span class="font-semibold text-gray-900">{{ products.number }}</span>
+            of <span class="font-semibold text-gray-900">{{ products.paginator.num_pages }}</span>
+          </p>
+
+          <div class="flex items-center gap-2 flex-wrap justify-center">
+            {% if products.has_previous %}
+              <a class="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                 href="?q={{ query|urlencode }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.min %}&min={{ request.GET.min }}{% endif %}{% if request.GET.max %}&max={{ request.GET.max }}{% endif %}&page={{ products.previous_page_number }}">
+                ← Prev
+              </a>
+            {% else %}
+              <span class="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-400 cursor-not-allowed">
+                ← Prev
+              </span>
+            {% endif %}
+
+            {% for num in products.paginator.page_range %}
+              {% if num == products.number %}
+                <span class="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-bold text-white">
+                  {{ num }}
+                </span>
+              {% else %}
+                <a class="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                   href="?q={{ query|urlencode }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.min %}&min={{ request.GET.min }}{% endif %}{% if request.GET.max %}&max={{ request.GET.max }}{% endif %}&page={{ num }}">
+                  {{ num }}
+                </a>
+              {% endif %}
+            {% endfor %}
+
+            {% if products.has_next %}
+              <a class="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                 href="?q={{ query|urlencode }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.min %}&min={{ request.GET.min }}{% endif %}{% if request.GET.max %}&max={{ request.GET.max }}{% endif %}&page={{ products.next_page_number }}">
+                Next →
+              </a>
+            {% else %}
+              <span class="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-400 cursor-not-allowed">
+                Next →
+              </span>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    {% else %}
+      <!-- Empty State -->
+      <div class="bg-white border border-gray-200 rounded-2xl p-8 text-center shadow-sm">
+        <div class="text-4xl">😕</div>
+        <h2 class="mt-3 text-lg font-bold text-gray-900">No products found</h2>
+        <p class="mt-2 text-sm text-gray-600 max-w-md mx-auto">
+          Try a different keyword, remove filters, or browse the latest products from the home page.
+        </p>
+
+        <div class="mt-5 flex flex-col sm:flex-row items-center justify-center gap-2">
+          <a href="{% url 'search_products' %}"
+             class="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
+            Clear search
+          </a>
+          <a href="{% url 'store_home' %}"
+             class="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50">
+            Go to home
+          </a>
+        </div>
+
+        {% if query %}
+          <div class="mt-6 text-xs text-gray-500">
+            You searched: <span class="font-semibold text-gray-700">{{ query }}</span>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

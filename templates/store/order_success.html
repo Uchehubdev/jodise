@@ -1,19 +1,25 @@
+{# templates/store/order_success.html #}
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}Order #{{ order.id }} | Success{% endblock %}
+{% block title %}Order Confirmed | Jodise{% endblock %}
+{% block meta_description %}Your order has been confirmed on Jodise. Track your order, download invoice, and view your items in one place.{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-slate-50">
+  <!-- ✅ Toast (copy feedback) -->
+  <div id="toastHost" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
+
   <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
+    <!-- ✅ Success Hero Card -->
     <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
       <div class="px-6 py-6 sm:px-8 sm:py-7">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
 
           <div class="flex items-start gap-4 min-w-0">
             <div class="h-12 w-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
-              <svg class="h-6 w-6 text-emerald-700" viewBox="0 0 24 24" fill="none">
+              <svg class="h-6 w-6 text-emerald-700" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
@@ -26,20 +32,25 @@
                 We’re preparing your items. You can track progress anytime.
               </p>
 
+              <!-- Badges -->
               <div class="mt-4 flex flex-wrap gap-2 text-xs">
-                <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
-                  Order ID <span class="text-slate-900">#{{ order.tracking_no }}</span>
-                </span>
-
-                {% if order_number %}
+                {% if order.tracking_no %}
                   <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
-                    Order No <span class="text-slate-900">{{ order_number }}</span>
+                    Tracking <span class="text-slate-900 font-extrabold">#{{ order.tracking_no }}</span>
                   </span>
                 {% endif %}
 
-                <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
-                  {{ order.items.count }} item{{ order.items.count|pluralize }}
-                </span>
+                {% if order_number %}
+                  <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
+                    Order No <span class="text-slate-900 font-extrabold">{{ order_number }}</span>
+                  </span>
+                {% endif %}
+
+                {% if order.items %}
+                  <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
+                    {{ order.items.count }} item{{ order.items.count|pluralize }}
+                  </span>
+                {% endif %}
 
                 {% if order.created_at %}
                   <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
@@ -47,34 +58,51 @@
                   </span>
                 {% endif %}
 
-                <button type="button"
-                        class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50"
-                        data-copy="{{ order.tracking_no }}">
-                  Copy Order ID
-                </button>
+                {% if order.tracking_no %}
+                  <button type="button"
+                          class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50"
+                          data-copy="{{ order.tracking_no }}"
+                          aria-label="Copy tracking number">
+                    Copy Tracking
+                  </button>
+                {% endif %}
               </div>
 
-              <details class="mt-3 text-xs text-slate-500">
-                <summary class="cursor-pointer select-none hover:text-slate-700">
-                  Show internal reference (support only)
-                </summary>
-                <div class="mt-2 rounded-xl bg-slate-50 border border-slate-200 p-3 break-all text-slate-700">
-                  {{ order.reference }}
-                </div>
-              </details>
+              <!-- Support-only reference -->
+              {% if order.reference %}
+                <details class="mt-3 text-xs text-slate-500">
+                  <summary class="cursor-pointer select-none hover:text-slate-700">
+                    Show internal reference (support only)
+                  </summary>
+                  <div class="mt-2 rounded-xl bg-slate-50 border border-slate-200 p-3 break-all text-slate-700">
+                    <div class="flex items-start justify-between gap-3">
+                      <span class="min-w-0 break-all">{{ order.reference }}</span>
+
+                      <button type="button"
+                              class="shrink-0 text-[11px] font-bold rounded-lg border border-slate-200 bg-white px-2 py-1 hover:bg-slate-50"
+                              data-copy="{{ order.reference }}">
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </details>
+              {% endif %}
             </div>
           </div>
 
+          <!-- Actions -->
           <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full lg:w-auto">
-            <a href="{{ track_link }}"
+            <a href="{{ track_link|default:'#' }}"
                class="inline-flex items-center justify-center rounded-xl bg-emerald-600 text-white px-5 py-3 text-sm font-semibold hover:bg-emerald-700">
               Track order
             </a>
 
-            <a href="{% url 'download_invoice' reference=order.reference %}"
-               class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-900 px-5 py-3 text-sm font-semibold hover:bg-slate-50">
-              Download invoice
-            </a>
+            {% if order.reference %}
+              <a href="{% url 'download_invoice' reference=order.reference %}"
+                 class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-900 px-5 py-3 text-sm font-semibold hover:bg-slate-50">
+                Download invoice
+              </a>
+            {% endif %}
 
             <a href="{% url 'store_home' %}"
                class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-900 px-5 py-3 text-sm font-semibold hover:bg-slate-50">
@@ -85,67 +113,79 @@
         </div>
       </div>
 
+      <!-- ✅ Status Steps -->
       <div class="px-6 pb-6 sm:px-8">
         {% with st=order.status|default:"paid" %}
-          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div class="flex items-center gap-3">
-              <div class="h-7 w-7 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">1</div>
-              <div>
-                <p class="text-sm font-bold text-slate-900">Placed</p>
-                <p class="text-xs text-slate-500">Order received</p>
+          {% if st == "cancelled" %}
+            <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 font-semibold">
+              This order was cancelled. If you think this is a mistake, contact support with your reference.
+            </div>
+          {% else %}
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div class="flex items-center gap-3">
+                <div class="h-7 w-7 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">1</div>
+                <div>
+                  <p class="text-sm font-bold text-slate-900">Placed</p>
+                  <p class="text-xs text-slate-500">Order received</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <div class="h-7 w-7 rounded-full {% if st == 'paid' or st == 'processing' or st == 'shipped' or st == 'completed' %}bg-emerald-600 text-white{% else %}bg-slate-200 text-slate-700{% endif %} flex items-center justify-center text-xs font-bold">2</div>
+                <div>
+                  <p class="text-sm font-bold text-slate-900">Paid</p>
+                  <p class="text-xs text-slate-500">Payment confirmed</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <div class="h-7 w-7 rounded-full {% if st == 'shipped' or st == 'completed' %}bg-emerald-600 text-white{% else %}bg-slate-200 text-slate-700{% endif %} flex items-center justify-center text-xs font-bold">3</div>
+                <div>
+                  <p class="text-sm font-bold text-slate-900">Shipped</p>
+                  <p class="text-xs text-slate-500">Out for delivery</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <div class="h-7 w-7 rounded-full {% if st == 'completed' %}bg-emerald-600 text-white{% else %}bg-slate-200 text-slate-700{% endif %} flex items-center justify-center text-xs font-bold">4</div>
+                <div>
+                  <p class="text-sm font-bold text-slate-900">Delivered</p>
+                  <p class="text-xs text-slate-500">Order completed</p>
+                </div>
               </div>
             </div>
 
-            <div class="flex items-center gap-3">
-              <div class="h-7 w-7 rounded-full {% if st == 'paid' or st == 'processing' or st == 'shipped' or st == 'completed' %}bg-emerald-600 text-white{% else %}bg-slate-200 text-slate-700{% endif %} flex items-center justify-center text-xs font-bold">2</div>
-              <div>
-                <p class="text-sm font-bold text-slate-900">Paid</p>
-                <p class="text-xs text-slate-500">Payment confirmed</p>
-              </div>
+            <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              {% if st == "completed" %}
+                Delivered successfully. Thanks for shopping with us!
+              {% elif st == "shipped" %}
+                Your order is on the way. Use “Track order” to see updates.
+              {% elif st == "processing" %}
+                Your order is being prepared for shipment.
+              {% elif st == "paid" %}
+                Payment confirmed. Next step: processing and shipment.
+              {% elif st == "pending" %}
+                Your order is created. Complete payment to proceed.
+              {% else %}
+                Current status: <span class="font-bold">{{ st|capfirst }}</span>
+              {% endif %}
             </div>
-
-            <div class="flex items-center gap-3">
-              <div class="h-7 w-7 rounded-full {% if st == 'shipped' or st == 'completed' %}bg-emerald-600 text-white{% else %}bg-slate-200 text-slate-700{% endif %} flex items-center justify-center text-xs font-bold">3</div>
-              <div>
-                <p class="text-sm font-bold text-slate-900">Shipped</p>
-                <p class="text-xs text-slate-500">Out for delivery</p>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-3">
-              <div class="h-7 w-7 rounded-full {% if st == 'completed' %}bg-emerald-600 text-white{% else %}bg-slate-200 text-slate-700{% endif %} flex items-center justify-center text-xs font-bold">4</div>
-              <div>
-                <p class="text-sm font-bold text-slate-900">Delivered</p>
-                <p class="text-xs text-slate-500">Order completed</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            {% if st == "completed" %}
-              Delivered successfully. Thanks for shopping with us!
-            {% elif st == "shipped" %}
-              Your order is on the way. Use “Track order” to see updates.
-            {% elif st == "processing" %}
-              Your order is being prepared for shipment.
-            {% elif st == "paid" %}
-              Payment confirmed. Next step: processing and shipment.
-            {% elif st == "pending" %}
-              Your order is created. Complete payment to proceed.
-            {% else %}
-              Current status: <span class="font-bold">{{ st|capfirst }}</span>
-            {% endif %}
-          </div>
+          {% endif %}
         {% endwith %}
       </div>
     </div>
 
+    <!-- ✅ Main Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
+      <!-- LEFT -->
       <div class="lg:col-span-2 space-y-6">
         <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div class="px-6 py-4 sm:px-8 border-b border-slate-200">
+          <div class="px-6 py-4 sm:px-8 border-b border-slate-200 flex items-center justify-between gap-3">
             <h2 class="text-base sm:text-lg font-extrabold text-slate-900">Items</h2>
+            {% if order.items %}
+              <span class="text-xs font-semibold text-slate-600">{{ order.items.count }} item{{ order.items.count|pluralize }}</span>
+            {% endif %}
           </div>
 
           <div class="divide-y divide-slate-200">
@@ -175,7 +215,7 @@
                       <p class="mt-1 text-sm text-slate-600">
                         Qty: <span class="font-semibold text-slate-800">{{ item.quantity|default:1 }}</span>
                         {% if item.unit_price %}
-                          • Unit: <span class="font-semibold text-slate-800">{{ currency_symbol }}{{ item.unit_price|floatformat:2|intcomma }}</span>
+                          • Unit: <span class="font-semibold text-slate-800">{{ currency_symbol|default:"₦" }}{{ item.unit_price|floatformat:2|intcomma }}</span>
                         {% endif %}
                       </p>
 
@@ -189,7 +229,7 @@
                     <div class="text-right">
                       <p class="text-xs text-slate-500">Total</p>
                       <p class="text-sm font-extrabold text-slate-900">
-                        {{ currency_symbol }}{{ item.subtotal|floatformat:2|intcomma }}
+                        {{ currency_symbol|default:"₦" }}{{ item.subtotal|default:0|floatformat:2|intcomma }}
                       </p>
                     </div>
                   </div>
@@ -199,7 +239,7 @@
                        class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                       Request refund
                     </a>
-                    <a href="{{ track_link }}"
+                    <a href="{{ track_link|default:'#' }}"
                        class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                       Track order
                     </a>
@@ -213,85 +253,155 @@
         </div>
       </div>
 
+      <!-- RIGHT -->
       <div class="space-y-6">
+        <!-- Summary -->
         <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-7">
           <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Summary</h3>
 
           <div class="mt-4 space-y-3 text-sm">
             <div class="flex justify-between text-slate-600">
               <span>Subtotal</span>
-              <span class="font-semibold text-slate-900">{{ currency_symbol }}{{ order.subtotal|default:0|floatformat:2|intcomma }}</span>
+              <span class="font-semibold text-slate-900">{{ currency_symbol|default:"₦" }}{{ order.subtotal|default:0|floatformat:2|intcomma }}</span>
             </div>
             <div class="flex justify-between text-slate-600">
               <span>VAT</span>
-              <span class="font-semibold text-slate-900">{{ currency_symbol }}{{ order.vat|default:0|floatformat:2|intcomma }}</span>
+              <span class="font-semibold text-slate-900">{{ currency_symbol|default:"₦" }}{{ order.vat|default:0|floatformat:2|intcomma }}</span>
             </div>
             <div class="flex justify-between text-slate-600">
               <span>Delivery</span>
-              <span class="font-semibold text-slate-900">{{ currency_symbol }}{{ order.delivery_fee|default:0|floatformat:2|intcomma }}</span>
+              <span class="font-semibold text-slate-900">{{ currency_symbol|default:"₦" }}{{ order.delivery_fee|default:0|floatformat:2|intcomma }}</span>
             </div>
 
             <div class="pt-3 border-t border-slate-200 flex justify-between">
               <span class="font-extrabold text-slate-900">Total</span>
-              <span class="font-extrabold text-slate-900 text-lg">{{ currency_symbol }}{{ order.total|default:0|floatformat:2|intcomma }}</span>
+              <span class="font-extrabold text-slate-900 text-lg">{{ currency_symbol|default:"₦" }}{{ order.total|default:0|floatformat:2|intcomma }}</span>
             </div>
           </div>
 
           <div class="mt-5 grid gap-3">
-            <a href="{{ track_link }}"
+            <a href="{{ track_link|default:'#' }}"
                class="inline-flex items-center justify-center rounded-xl bg-emerald-600 text-white px-4 py-3 text-sm font-semibold hover:bg-emerald-700">
               Track order
             </a>
 
-            <a href="{% url 'download_invoice' reference=order.reference %}"
-               class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-900 px-4 py-3 text-sm font-semibold hover:bg-slate-50">
-              Download invoice
-            </a>
+            {% if order.reference %}
+              <a href="{% url 'download_invoice' reference=order.reference %}"
+                 class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-900 px-4 py-3 text-sm font-semibold hover:bg-slate-50">
+                Download invoice
+              </a>
+            {% endif %}
           </div>
 
-          <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            Use <span class="font-extrabold text-slate-900">Order ID #{{ order.tracking_no }}</span> for tracking/support.
-          </div>
+          {% if order.tracking_no %}
+            <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              Use <span class="font-extrabold text-slate-900">Tracking Number: {{ order.tracking_no }}</span> for tracking/support.
+            </div>
+          {% endif %}
         </div>
 
+        <!-- Delivery address -->
         <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-7">
           <h3 class="text-base font-extrabold text-slate-900">Delivery address</h3>
           <div class="mt-3 text-sm text-slate-700 space-y-1">
             {% if order.delivery_address %}<p class="font-semibold text-slate-900">{{ order.delivery_address }}</p>{% endif %}
             {% if order.address_line1 %}<p>{{ order.address_line1 }}</p>{% endif %}
             {% if order.address_line2 %}<p>{{ order.address_line2 }}</p>{% endif %}
+
             <p class="text-slate-600">
               {% if order.city %}{{ order.city }}{% endif %}
               {% if order.state %}{% if order.city %}, {% endif %}{{ order.state }}{% endif %}
             </p>
+
             <p class="text-slate-600">
               {% if order.country %}{{ order.country }}{% endif %}
               {% if order.postal_code %} • {{ order.postal_code }}{% endif %}
             </p>
 
-            {% if not order.delivery_address and not order.address_line1 %}
+            {% if not order.delivery_address and not order.address_line1 and not order.city and not order.state %}
               <p class="text-slate-500">No address saved on this order.</p>
             {% endif %}
           </div>
         </div>
-
       </div>
-    </div>
 
+    </div>
   </div>
 </div>
 
 <script>
   (function () {
-    const btns = document.querySelectorAll("[data-copy]");
-    btns.forEach((btn) => {
+    function toast(msg, type) {
+      const host = document.getElementById("toastHost");
+      if (!host) return;
+
+      const el = document.createElement("div");
+      const base = "px-4 py-3 rounded-2xl shadow-lg border text-sm font-semibold flex items-start gap-2";
+      const themes = {
+        success: "bg-emerald-50 border-emerald-200 text-emerald-900",
+        info: "bg-blue-50 border-blue-200 text-blue-900",
+        warn: "bg-amber-50 border-amber-200 text-amber-900",
+        error: "bg-red-50 border-red-200 text-red-900",
+      };
+      el.className = base + " " + (themes[type || "info"] || themes.info);
+      el.innerHTML = `<span class="mt-[1px]">${type === "success" ? "✅" : type === "warn" ? "⚠️" : type === "error" ? "❌" : "ℹ️"}</span>
+                      <div class="min-w-0">${msg}</div>`;
+      host.appendChild(el);
+
+      setTimeout(() => {
+        el.style.opacity = "0";
+        el.style.transform = "translateY(-6px)";
+        el.style.transition = "all .25s ease";
+        setTimeout(() => el.remove(), 250);
+      }, 1800);
+    }
+
+    async function copyText(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (e) {}
+
+      // fallback
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "-9999px";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return ok;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    document.querySelectorAll("[data-copy]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(btn.getAttribute("data-copy") || "");
-          const old = btn.textContent;
+        const value = btn.getAttribute("data-copy") || "";
+        if (!value) return;
+
+        const old = btn.textContent;
+        btn.disabled = true;
+
+        const ok = await copyText(value);
+        if (ok) {
           btn.textContent = "Copied ✓";
-          setTimeout(() => (btn.textContent = old), 1200);
-        } catch (e) {}
+          toast("Copied to clipboard.", "success");
+        } else {
+          toast("Copy failed. Please copy manually.", "warn");
+        }
+
+        setTimeout(() => {
+          btn.textContent = old;
+          btn.disabled = false;
+        }, 1200);
       });
     });
   })();

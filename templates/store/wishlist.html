@@ -1,0 +1,182 @@
+{# templates/store/wishlist.html #}
+{% extends "base.html" %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}My Wishlist{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 pb-24">
+
+  <!-- Header -->
+  <section class="bg-white border-b border-gray-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="min-w-0">
+          <h1 class="text-xl sm:text-2xl font-extrabold text-gray-900 truncate">
+            ❤️ My Wishlist
+          </h1>
+          <p class="text-sm text-gray-600 mt-1">
+            {% if products %}
+              {{ products|length|intcomma }} item{{ products|length|pluralize }} saved
+            {% else %}
+              Nothing saved yet
+            {% endif %}
+          </p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <!-- Quick search -->
+          <form method="get" action="{% url 'search_products' %}" class="w-full sm:w-auto">
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">🔎</span>
+              <input
+                name="q"
+                placeholder="Search products..."
+                class="w-full sm:w-64 rounded-2xl border border-gray-200 bg-white pl-10 pr-3 py-2.5 text-sm shadow-sm
+                       focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
+              />
+            </div>
+          </form>
+
+          <a href="{% url 'store_home' %}"
+             class="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm">
+            <span class="text-base">🏠</span>
+            Continue shopping
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Body -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    {% if products %}
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+        {% for product in products %}
+          <div class="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition overflow-hidden">
+            <!-- Image -->
+            <a href="{{ product.get_absolute_url }}" class="block">
+              <div class="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+                {% with img=product.images.all|first %}
+                  {% if img and img.image %}
+                    <img
+                      src="{{ img.image.url }}"
+                      alt="{{ img.alt_text|default:product.name }}"
+                      class="h-full w-full object-cover group-hover:scale-[1.03] transition duration-300"
+                    />
+                  {% else %}
+                    <div class="h-full w-full flex items-center justify-center text-gray-400 text-sm">
+                      No image
+                    </div>
+                  {% endif %}
+                {% endwith %}
+
+                {% if product.stock|default:0 <= 0 %}
+                  <span class="absolute top-3 left-3 rounded-full bg-red-600 px-3 py-1 text-[11px] font-extrabold text-white">
+                    Out of stock
+                  </span>
+                {% elif product.stock|default:0 < 5 %}
+                  <span class="absolute top-3 left-3 rounded-full bg-amber-500 px-3 py-1 text-[11px] font-extrabold text-white">
+                    Low stock
+                  </span>
+                {% else %}
+                  <span class="absolute top-3 left-3 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-extrabold text-white">
+                    In stock
+                  </span>
+                {% endif %}
+
+                {% if product.category %}
+                  <span class="absolute top-3 right-3 rounded-full bg-gray-900/90 px-3 py-1 text-[11px] font-bold text-white">
+                    {{ product.category.name }}
+                  </span>
+                {% endif %}
+              </div>
+            </a>
+
+            <!-- Content -->
+            <div class="p-3 sm:p-4">
+              <a href="{{ product.get_absolute_url }}" class="block">
+                <h3 class="text-sm sm:text-base font-extrabold text-gray-900 leading-snug line-clamp-2">
+                  {{ product.name }}
+                </h3>
+
+                <div class="mt-2 flex items-center justify-between gap-2">
+                  <p class="text-base sm:text-lg font-extrabold text-emerald-700">
+                    {{ currency_symbol }}{{ product.price|floatformat:2|intcomma }}
+                  </p>
+                  <span class="text-xs text-gray-500 whitespace-nowrap">
+                    Stock: {{ product.stock|default:"0" }}
+                  </span>
+                </div>
+
+                <p class="mt-1 text-xs text-gray-600 truncate">
+                  {% if product.seller and product.seller.store_name %}
+                    🏪 {{ product.seller.store_name }}
+                  {% elif product.seller and product.seller.user and product.seller.user.email %}
+                    🏪 {{ product.seller.user.email }}
+                  {% else %}
+                    🏪 Seller
+                  {% endif %}
+                </p>
+              </a>
+
+              <!-- Actions -->
+              <div class="mt-3 grid grid-cols-2 gap-2">
+                {% if product.stock|default:0 > 0 %}
+                  <a href="{% url 'add_to_cart' product.id %}?qty=1"
+                     class="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-xs sm:text-sm font-bold text-white hover:bg-emerald-700">
+                    🛒 Add to cart
+                  </a>
+                {% else %}
+                  <span class="inline-flex items-center justify-center rounded-xl bg-gray-100 px-3 py-2 text-xs sm:text-sm font-bold text-gray-400 cursor-not-allowed">
+                    🛒 Unavailable
+                  </span>
+                {% endif %}
+
+                <form method="post" action="{% url 'toggle_wishlist' product.id %}">
+                  {% csrf_token %}
+                  <button type="submit"
+                          class="w-full inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm font-bold text-gray-800 hover:bg-gray-50">
+                    ✖ Remove
+                  </button>
+                </form>
+              </div>
+
+              <!-- Quick link -->
+              <div class="mt-2">
+                <a href="{{ product.get_absolute_url }}"
+                   class="inline-flex w-full items-center justify-center rounded-xl bg-gray-900 px-3 py-2 text-xs sm:text-sm font-bold text-white hover:bg-emerald-700 transition">
+                  View product →
+                </a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+    {% else %}
+      <!-- Empty state -->
+      <div class="bg-white border border-gray-200 rounded-2xl p-8 text-center shadow-sm">
+        <div class="text-4xl">🫧</div>
+        <h2 class="mt-3 text-lg font-extrabold text-gray-900">Your wishlist is empty</h2>
+        <p class="mt-2 text-sm text-gray-600 max-w-md mx-auto">
+          Save items you like so you can come back later. Tap the ❤️ icon on any product to add it here.
+        </p>
+
+        <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2">
+          <a href="{% url 'store_home' %}"
+             class="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">
+            Browse products
+          </a>
+          <a href="{% url 'search_products' %}"
+             class="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            Search
+          </a>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

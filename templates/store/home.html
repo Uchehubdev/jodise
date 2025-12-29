@@ -1,305 +1,584 @@
 {% extends "base.html" %}
 {% block title %}Jodise | Mega Deals & Low Prices{% endblock %}
 
-{% block meta_description %}Shop today’s lightning deals and trending products on Jodise. Mega discounts, fast delivery, and low prices.{% endblock %}
+{% block meta_description %}
+Shop today’s lightning deals and trending products on Jodise. Mega discounts, fast delivery, and low prices.
+{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto md:px-6">
 
-  <!-- 🔍 Mobile Sticky Search -->
-  <div class="md:hidden sticky top-0 bg-white/95 backdrop-blur border-b border-gray-100 z-40 p-3 flex gap-2 items-center">
-    <form action="{% url 'search_products' %}" method="GET" class="relative flex-1">
-      <label class="sr-only" for="mSearch">Search</label>
-      <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">🔍</span>
-      <input
-        id="mSearch"
-        type="text"
-        name="q"
-        value="{{ request.GET.q|default:'' }}"
-        placeholder="Search products… (e.g. Sneakers)"
-        class="w-full bg-gray-100 rounded-full py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-        autocomplete="off"
-      >
-    </form>
+  {# ---------- Helpers ---------- #}
+  {% with wl=request.session.wishlist %}
+    <input type="hidden" id="cartCountValue" value="{{ cart_count|default:0 }}">
+    <input type="hidden" id="wishlistRaw" value="{% if wl %}1{% else %}0{% endif %}">
 
-    <a href="{% url 'view_cart' %}" class="text-2xl relative" aria-label="Cart">
-      🛒
-      {% with cc=cart_count|default:0 %}
-        {% if cc|add:0 > 0 %}
-          <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
-            {{ cc }}
+    <!-- 🔍 Mobile Sticky Search -->
+    <div class="md:hidden sticky top-0 bg-white/95 backdrop-blur border-b border-gray-100 z-40 p-3 flex gap-2 items-center">
+      <form action="{% url 'search_products' %}" method="GET" class="relative flex-1">
+        <label class="sr-only" for="mSearch">Search</label>
+        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">🔍</span>
+        <input
+          id="mSearch"
+          type="text"
+          name="q"
+          value="{{ request.GET.q|default:'' }}"
+          placeholder="Search products… (e.g. Sneakers)"
+          class="w-full bg-gray-100 rounded-full py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          autocomplete="off"
+        >
+      </form>
+
+      <a href="{% url 'view_cart' %}" class="text-2xl relative" aria-label="Cart">
+        🛒
+        <span
+          data-cart-count-wrap
+          class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full {% if cart_count|default:0|add:0 <= 0 %}hidden{% endif %}">
+          <span data-cart-count>{{ cart_count|default:0 }}</span>
+        </span>
+      </a>
+    </div>
+
+    <!-- 🚚 HERO SECTION (Desktop Grid) -->
+    <div class="mt-4 px-3 md:px-0 grid grid-cols-1 md:grid-cols-12 gap-4">
+
+      <!-- Sidebar Categories (Desktop) -->
+      <aside class="hidden md:block col-span-2 bg-white rounded-2xl shadow-sm p-4 h-96 overflow-y-auto border border-gray-100">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-extrabold text-gray-900">Categories</h3>
+          <a href="{% url 'search_products' %}" class="text-xs text-orange-600 hover:underline">See all</a>
+        </div>
+
+        <ul class="space-y-1.5 text-sm text-gray-700">
+          {% for cat in categories %}
+            <li>
+              <a
+                href="{% url 'search_products' %}?category={{ cat.id }}"
+                class="flex items-center justify-between hover:text-yellow-700 hover:bg-yellow-50 px-2 py-2 rounded-xl transition"
+              >
+                <span class="truncate">{{ cat.name }}</span>
+                <span class="text-gray-300">›</span>
+              </a>
+            </li>
+          {% empty %}
+            <li class="text-gray-400 text-sm px-2 py-2">No categories yet.</li>
+          {% endfor %}
+        </ul>
+
+        <div class="mt-4 p-3 rounded-2xl border border-yellow-100 bg-yellow-50">
+          <p class="text-xs text-gray-700 font-semibold">Tip</p>
+          <p class="text-xs text-gray-600 mt-1">
+            Use search to find stores, brands, and deals faster.
+          </p>
+        </div>
+      </aside>
+
+      <!-- Main Hero -->
+      <section class="col-span-1 md:col-span-8 rounded-3xl overflow-hidden shadow-lg border border-orange-100">
+        <div class="relative bg-gradient-to-br from-orange-600 via-yellow-500 to-orange-700 h-56 md:h-96 flex items-center">
+          <div class="absolute inset-0 opacity-20">
+            <div class="absolute -top-10 -right-10 w-44 h-44 bg-white rounded-full blur-2xl"></div>
+            <div class="absolute -bottom-16 -left-12 w-72 h-72 bg-yellow-300 rounded-full blur-3xl"></div>
+            <div class="absolute top-14 left-20 w-16 h-16 bg-white rounded-full blur-xl"></div>
+          </div>
+
+          <div class="relative z-10 w-full p-5 md:p-10 text-white">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="inline-flex items-center gap-2 bg-black/25 px-3 py-1.5 rounded-full text-xs md:text-sm font-semibold">
+                🔥 Today’s Hot Deals
+              </span>
+              <span class="hidden md:inline-flex bg-white/15 px-3 py-1.5 rounded-full text-xs font-semibold">
+                New drops daily
+              </span>
+            </div>
+
+            <h1 class="text-3xl md:text-6xl font-extrabold leading-tight drop-shadow-sm">
+              Mega Blowout Sale
+            </h1>
+            <p class="mt-2 text-sm md:text-xl font-bold bg-black/20 inline-block px-4 py-1.5 rounded-full">
+              Up to 90% OFF
+            </p>
+
+            <div class="mt-6 flex flex-wrap gap-3">
+              <a
+                href="{% url 'search_products' %}"
+                class="bg-white text-orange-700 font-extrabold py-2.5 px-8 rounded-full shadow-xl hover:scale-105 transform transition"
+              >
+                Shop Now
+              </a>
+              <a
+                href="#recommended"
+                class="bg-black/20 text-white font-semibold py-2.5 px-7 rounded-full hover:bg-black/30 transition"
+              >
+                Explore
+              </a>
+            </div>
+
+            <p class="mt-4 text-xs md:text-sm text-white/90">
+              Trusted sellers • Buyer protection • Fast checkout
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Promo -->
+      <aside class="hidden md:flex col-span-2 flex-col gap-4">
+
+        <div class="bg-white rounded-2xl shadow-sm p-4 flex-1 border border-gray-100">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center text-2xl">⚡</div>
+            <div class="min-w-0">
+              <p class="font-extrabold text-sm text-gray-900">Lightning Deals</p>
+              <p class="text-xs text-gray-500 truncate">Limited-time offers</p>
+            </div>
+          </div>
+          <a href="{% url 'search_products' %}" class="mt-4 inline-flex w-full justify-center text-xs font-extrabold text-orange-700 bg-orange-50 border border-orange-100 py-2 rounded-xl hover:bg-orange-100 transition">
+            Shop deals
+          </a>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm p-4 flex-1 border border-gray-100">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-2xl">🚚</div>
+            <div class="min-w-0">
+              <p class="font-extrabold text-sm text-gray-900">Free Shipping</p>
+              <p class="text-xs text-gray-500 truncate">On selected items</p>
+            </div>
+          </div>
+          <a href="{% url 'search_products' %}" class="mt-4 inline-flex w-full justify-center text-xs font-extrabold text-blue-700 bg-blue-50 border border-blue-100 py-2 rounded-xl hover:bg-blue-100 transition">
+            View eligible
+          </a>
+        </div>
+
+      </aside>
+
+    </div>
+
+    <!-- ⚡ Flash Deals Carousel -->
+    <section class="mt-8 px-3 md:px-0">
+      <div class="flex justify-between items-center mb-4">
+        <div class="flex items-center gap-3">
+          <h2 class="font-extrabold text-xl flex items-center">
+            <span class="text-red-500 mr-2">⚡</span> Lightning Deals
+          </h2>
+          <span class="hidden md:inline-flex bg-black text-white text-xs px-2.5 py-1 rounded font-mono">
+            Limited Time
           </span>
-        {% endif %}
-      {% endwith %}
-    </a>
-  </div>
+        </div>
 
-  <!-- 🚚 HERO SECTION (Desktop Grid) -->
-  <div class="mt-4 px-3 md:px-0 grid grid-cols-1 md:grid-cols-12 gap-4">
-
-    <!-- Sidebar Categories (Desktop) -->
-    <aside class="hidden md:block col-span-2 bg-white rounded-2xl shadow-sm p-4 h-96 overflow-y-auto border border-gray-100">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-extrabold text-gray-900">Categories</h3>
-        <a href="{% url 'search_products' %}" class="text-xs text-orange-600 hover:underline">See all</a>
+        <a href="{% url 'search_products' %}" class="text-sm font-semibold text-orange-600 hover:underline">
+          View All &gt;
+        </a>
       </div>
 
-      <ul class="space-y-1.5 text-sm text-gray-700">
-        {% for cat in categories %}
-          <li>
-            <a
-              href="{% url 'search_products' %}?category={{ cat.id }}"
-              class="flex items-center justify-between hover:text-yellow-700 hover:bg-yellow-50 px-2 py-2 rounded-xl transition"
-            >
-              <span class="truncate">{{ cat.name }}</span>
-              <span class="text-gray-300">›</span>
+      <div class="flex space-x-4 overflow-x-auto pb-6 hide-scrollbar snap-x">
+        {% for p in featured %}
+          <div
+            class="bg-white rounded-2xl shadow-sm min-w-[170px] md:min-w-[230px] snap-center hover:shadow-lg transition transform hover:-translate-y-1 relative group border border-gray-100 overflow-hidden"
+            data-card
+          >
+            <a href="{% url 'product_detail' p.slug p.public_id %}" class="block">
+              <span class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-extrabold px-2 py-1 rounded-full z-10">
+                DEAL
+              </span>
+
+              {% with first_img=p.images.first %}
+                {% if first_img %}
+                  <img
+                    src="{{ first_img.image.url }}"
+                    alt="{{ p.name }}"
+                    class="w-full h-40 object-cover group-hover:opacity-95"
+                    loading="lazy"
+                  >
+                {% else %}
+                  <img
+                    src="https://via.placeholder.com/230x160?text=Item"
+                    alt="{{ p.name }}"
+                    class="w-full h-40 object-cover"
+                    loading="lazy"
+                  >
+                {% endif %}
+              {% endwith %}
+
+              <div class="p-3">
+                <div class="h-1 w-full bg-gray-200 rounded-full mb-2 overflow-hidden">
+                  <div class="h-full bg-orange-500 w-3/4"></div>
+                </div>
+
+                <p class="text-xs text-gray-500 mb-1">🔥 Almost Sold Out</p>
+
+                <p class="text-gray-900 font-extrabold text-sm truncate">{{ p.name }}</p>
+
+                <div class="flex items-baseline mt-1 space-x-2">
+                  <span class="text-red-600 font-extrabold text-lg">{{ currency_symbol|default:"₦" }}{{ p.price }}</span>
+                  <span class="text-gray-400 text-xs line-through">
+                    {{ currency_symbol|default:"₦" }}{{ p.price|add:"5000" }}
+                  </span>
+                </div>
+              </div>
             </a>
-          </li>
+
+            <!-- Quick actions (no refresh) -->
+            <div class="absolute top-2 right-2 z-20 flex gap-2">
+              <button
+                type="button"
+                class="js-wishlist inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow hover:shadow-md transition"
+                title="Wishlist"
+                data-wishlist-url="{% url 'toggle_wishlist' p.id %}"
+                data-product-name="{{ p.name|escapejs }}"
+                data-in-wishlist="{% if wl and p.id|stringformat:'s' in wl %}1{% else %}0{% endif %}"
+              >
+                <span class="js-wishlist-icon">{% if wl and p.id|stringformat:'s' in wl %}❤️{% else %}🤍{% endif %}</span>
+              </button>
+
+              <button
+                type="button"
+                class="js-add-to-cart inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow hover:shadow-md transition"
+                title="Add to cart"
+                data-add-url="{% url 'add_to_cart' p.id %}"
+                data-product-name="{{ p.name|escapejs }}"
+                data-stock="{{ p.stock|default:0 }}"
+              >
+                🛒
+              </button>
+            </div>
+          </div>
         {% empty %}
-          <li class="text-gray-400 text-sm px-2 py-2">No categories yet.</li>
+          <div class="bg-white border border-gray-100 rounded-2xl p-6 text-sm text-gray-500">
+            No featured products yet.
+          </div>
         {% endfor %}
-      </ul>
-
-      <div class="mt-4 p-3 rounded-2xl border border-yellow-100 bg-yellow-50">
-        <p class="text-xs text-gray-700 font-semibold">Tip</p>
-        <p class="text-xs text-gray-600 mt-1">
-          Use search to find stores, brands, and deals faster.
-        </p>
-      </div>
-    </aside>
-
-    <!-- Main Hero -->
-    <section class="col-span-1 md:col-span-8 rounded-3xl overflow-hidden shadow-lg border border-orange-100">
-      <div class="relative deal-gradient h-56 md:h-96 flex items-center">
-        <div class="absolute inset-0 opacity-20">
-          <div class="absolute -top-10 -right-10 w-44 h-44 bg-white rounded-full blur-2xl"></div>
-          <div class="absolute -bottom-16 -left-12 w-72 h-72 bg-yellow-300 rounded-full blur-3xl"></div>
-          <div class="absolute top-14 left-20 w-16 h-16 bg-white rounded-full blur-xl"></div>
-        </div>
-
-        <div class="relative z-10 w-full p-5 md:p-10 text-white">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="inline-flex items-center gap-2 bg-black/25 px-3 py-1.5 rounded-full text-xs md:text-sm font-semibold">
-              🔥 Today’s Hot Deals
-            </span>
-            <span class="hidden md:inline-flex bg-white/15 px-3 py-1.5 rounded-full text-xs font-semibold">
-              New drops daily
-            </span>
-          </div>
-
-          <h1 class="text-3xl md:text-6xl font-extrabold leading-tight drop-shadow-sm">
-            Mega Blowout Sale
-          </h1>
-          <p class="mt-2 text-sm md:text-xl font-bold bg-black/20 inline-block px-4 py-1.5 rounded-full">
-            Up to 90% OFF
-          </p>
-
-          <div class="mt-6 flex flex-wrap gap-3">
-            <a
-              href="{% url 'search_products' %}"
-              class="bg-white text-orange-700 font-extrabold py-2.5 px-8 rounded-full shadow-xl hover:scale-105 transform transition"
-            >
-              Shop Now
-            </a>
-            <a
-              href="#recommended"
-              class="bg-black/20 text-white font-semibold py-2.5 px-7 rounded-full hover:bg-black/30 transition"
-            >
-              Explore
-            </a>
-          </div>
-
-          <p class="mt-4 text-xs md:text-sm text-white/90">
-            Trusted sellers • Buyer protection • Fast checkout
-          </p>
-        </div>
       </div>
     </section>
 
-    <!-- Right Promo -->
-    <aside class="hidden md:flex col-span-2 flex-col gap-4">
-
-      <div class="bg-white rounded-2xl shadow-sm p-4 flex-1 border border-gray-100">
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center text-2xl">⚡</div>
-          <div class="min-w-0">
-            <p class="font-extrabold text-sm text-gray-900">Lightning Deals</p>
-            <p class="text-xs text-gray-500 truncate">Limited-time offers</p>
-          </div>
-        </div>
-        <a href="{% url 'search_products' %}" class="mt-4 inline-flex w-full justify-center text-xs font-extrabold text-orange-700 bg-orange-50 border border-orange-100 py-2 rounded-xl hover:bg-orange-100 transition">
-          Shop deals
-        </a>
-      </div>
-
-      <div class="bg-white rounded-2xl shadow-sm p-4 flex-1 border border-gray-100">
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-2xl">🚚</div>
-          <div class="min-w-0">
-            <p class="font-extrabold text-sm text-gray-900">Free Shipping</p>
-            <p class="text-xs text-gray-500 truncate">On selected items</p>
-          </div>
-        </div>
-        <a href="{% url 'search_products' %}" class="mt-4 inline-flex w-full justify-center text-xs font-extrabold text-blue-700 bg-blue-50 border border-blue-100 py-2 rounded-xl hover:bg-blue-100 transition">
-          View eligible
-        </a>
-      </div>
-
-    </aside>
-
-  </div>
-
-  <!-- ⚡ Flash Deals Carousel -->
-  <section class="mt-8 px-3 md:px-0">
-    <div class="flex justify-between items-center mb-4">
-      <div class="flex items-center gap-3">
-        <h2 class="font-extrabold text-xl flex items-center">
-          <span class="text-red-500 mr-2">⚡</span> Lightning Deals
+    <!-- 🔥 Recommended Grid -->
+    <section id="recommended" class="mt-4 px-3 md:px-0 pb-20">
+      <div class="text-center mb-6">
+        <h2 class="text-lg font-extrabold text-gray-900 uppercase tracking-widest border-b-2 border-yellow-400 inline-block pb-1">
+          Recommended For You
         </h2>
-        <span class="hidden md:inline-flex bg-black text-white text-xs px-2.5 py-1 rounded font-mono">
-          Limited Time
-        </span>
+        <p class="text-xs text-gray-500 mt-2">Fresh picks updated regularly</p>
       </div>
 
-      <a href="{% url 'search_products' %}" class="text-sm font-semibold text-orange-600 hover:underline">
-        View All &gt;
-      </a>
-    </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+        {% for p in latest %}
+          <div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition duration-200 flex flex-col relative group border border-gray-100 overflow-hidden">
 
-    <div class="flex space-x-4 overflow-x-auto pb-6 hide-scrollbar snap-x">
-      {% for p in featured %}
-        <a
-          href="{% url 'product_detail' p.slug p.public_id %}"
-          class="bg-white rounded-2xl shadow-sm min-w-[170px] md:min-w-[230px] snap-center hover:shadow-lg transition transform hover:-translate-y-1 relative group border border-gray-100 overflow-hidden"
-        >
-          <span class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-extrabold px-2 py-1 rounded-full z-10">
-            DEAL
-          </span>
+            <a href="{% url 'product_detail' p.slug p.public_id %}" class="block">
+              {% with first_img=p.images.first %}
+                {% if first_img %}
+                  <img
+                    src="{{ first_img.image.url }}"
+                    alt="{{ p.name }}"
+                    class="w-full h-40 md:h-48 object-cover"
+                    loading="lazy"
+                  >
+                {% else %}
+                  <img
+                    src="https://via.placeholder.com/300x240?text=Product"
+                    alt="{{ p.name }}"
+                    class="w-full h-40 md:h-48 object-cover"
+                    loading="lazy"
+                  >
+                {% endif %}
+              {% endwith %}
+            </a>
 
-          {% with first_img=p.images.first %}
-            {% if first_img %}
-              <img
-                src="{{ first_img.image.url }}"
-                alt="{{ p.name }}"
-                class="w-full h-40 object-cover group-hover:opacity-95"
-                loading="lazy"
+            <!-- Quick actions (no refresh) -->
+            <div class="absolute top-2 right-2 z-20 flex flex-col gap-2">
+              <button
+                type="button"
+                class="js-wishlist inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow hover:shadow-md transition"
+                title="Wishlist"
+                data-wishlist-url="{% url 'toggle_wishlist' p.id %}"
+                data-product-name="{{ p.name|escapejs }}"
+                data-in-wishlist="{% if wl and p.id|stringformat:'s' in wl %}1{% else %}0{% endif %}"
               >
-            {% else %}
-              <img
-                src="https://via.placeholder.com/230x160?text=Item"
-                alt="{{ p.name }}"
-                class="w-full h-40 object-cover"
-                loading="lazy"
-              >
-            {% endif %}
-          {% endwith %}
+                <span class="js-wishlist-icon">{% if wl and p.id|stringformat:'s' in wl %}❤️{% else %}🤍{% endif %}</span>
+              </button>
 
-          <div class="p-3">
-            <div class="h-1 w-full bg-gray-200 rounded-full mb-2 overflow-hidden">
-              <div class="h-full bg-orange-500 w-3/4"></div>
+              <button
+                type="button"
+                class="js-add-to-cart inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow hover:shadow-md transition"
+                title="Add to cart"
+                data-add-url="{% url 'add_to_cart' p.id %}"
+                data-product-name="{{ p.name|escapejs }}"
+                data-stock="{{ p.stock|default:0 }}"
+              >
+                🛒
+              </button>
             </div>
 
-            <p class="text-xs text-gray-500 mb-1">🔥 Almost Sold Out</p>
+            <div class="p-3 flex flex-col flex-1">
+              <a href="{% url 'product_detail' p.slug p.public_id %}">
+                <p class="text-gray-900 text-sm font-extrabold line-clamp-2 mb-1 leading-tight">
+                  {{ p.name }}
+                </p>
+              </a>
 
-            <p class="text-gray-900 font-extrabold text-sm truncate">{{ p.name }}</p>
+              <div class="mt-auto">
+                <div class="flex items-center space-x-1 mb-1">
+                  <span class="text-yellow-400 text-xs">★★★★☆</span>
+                  <span class="text-gray-400 text-[10px]">(99+)</span>
+                </div>
 
-            <div class="flex items-baseline mt-1 space-x-2">
-              <span class="text-red-600 font-extrabold text-lg">{{ currency_symbol|default:"₦" }}{{ p.price }}</span>
-              <span class="text-gray-400 text-xs line-through">
-                {{ currency_symbol|default:"₦" }}{{ p.price|add:"5000" }}
-              </span>
-            </div>
-          </div>
-        </a>
-      {% empty %}
-        <div class="bg-white border border-gray-100 rounded-2xl p-6 text-sm text-gray-500">
-          No featured products yet.
-        </div>
-      {% endfor %}
-    </div>
-  </section>
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-900 font-extrabold">{{ currency_symbol|default:"₦" }}{{ p.price }}</span>
+                  <span class="text-[10px] text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                    Free Ship
+                  </span>
+                </div>
 
-  <!-- 🔥 Recommended Grid -->
-  <section id="recommended" class="mt-4 px-3 md:px-0 pb-20">
-    <div class="text-center mb-6">
-      <h2 class="text-lg font-extrabold text-gray-900 uppercase tracking-widest border-b-2 border-yellow-400 inline-block pb-1">
-        Recommended For You
-      </h2>
-      <p class="text-xs text-gray-500 mt-2">Fresh picks updated regularly</p>
-    </div>
+                <!-- Mobile action row (extra clear) -->
+                <div class="mt-3 grid grid-cols-2 gap-2 md:hidden">
+                  <button
+                    type="button"
+                    class="js-add-to-cart w-full rounded-xl bg-orange-600 text-white text-xs font-extrabold py-2 hover:bg-orange-700 transition"
+                    data-add-url="{% url 'add_to_cart' p.id %}"
+                    data-product-name="{{ p.name|escapejs }}"
+                    data-stock="{{ p.stock|default:0 }}"
+                  >
+                    Add to cart
+                  </button>
 
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
-      {% for p in latest %}
-        <a
-          href="{% url 'product_detail' p.slug p.public_id %}"
-          class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition duration-200 flex flex-col relative group border border-gray-100 overflow-hidden"
-        >
-          {% with first_img=p.images.first %}
-            {% if first_img %}
-              <img
-                src="{{ first_img.image.url }}"
-                alt="{{ p.name }}"
-                class="w-full h-40 md:h-48 object-cover"
-                loading="lazy"
-              >
-            {% else %}
-              <img
-                src="https://via.placeholder.com/300x240?text=Product"
-                alt="{{ p.name }}"
-                class="w-full h-40 md:h-48 object-cover"
-                loading="lazy"
-              >
-            {% endif %}
-          {% endwith %}
-
-          <span
-            class="hidden md:group-hover:flex absolute bottom-24 right-2 bg-orange-500 text-white p-2 rounded-full shadow-lg hover:bg-orange-600 transition items-center justify-center"
-            title="Add to cart"
-          >
-            🛒
-          </span>
-
-          <div class="p-3 flex flex-col flex-1">
-            <p class="text-gray-900 text-sm font-extrabold line-clamp-2 mb-1 leading-tight">
-              {{ p.name }}
-            </p>
-
-            <div class="mt-auto">
-              <div class="flex items-center space-x-1 mb-1">
-                <span class="text-yellow-400 text-xs">★★★★☆</span>
-                <span class="text-gray-400 text-[10px]">(99+)</span>
-              </div>
-
-              <div class="flex justify-between items-center">
-                <span class="text-gray-900 font-extrabold">{{ currency_symbol|default:"₦" }}{{ p.price }}</span>
-                <span class="text-[10px] text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
-                  Free Ship
-                </span>
+                  <button
+                    type="button"
+                    class="js-wishlist w-full rounded-xl border border-gray-200 bg-white text-xs font-extrabold py-2 hover:bg-gray-50 transition"
+                    data-wishlist-url="{% url 'toggle_wishlist' p.id %}"
+                    data-product-name="{{ p.name|escapejs }}"
+                    data-in-wishlist="{% if wl and p.id|stringformat:'s' in wl %}1{% else %}0{% endif %}"
+                  >
+                    {% if wl and p.id|stringformat:'s' in wl %}Saved ❤️{% else %}Wishlist 🤍{% endif %}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+        {% empty %}
+          <p class="col-span-full text-center text-gray-500 py-10">
+            Starting out? Add products to see them here!
+          </p>
+        {% endfor %}
+      </div>
+
+      <div class="mt-8 text-center">
+        <a
+          href="{% url 'search_products' %}"
+          class="inline-flex items-center justify-center bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-full shadow-sm hover:bg-gray-50 transition text-sm font-extrabold"
+        >
+          Browse More Products
         </a>
-      {% empty %}
-        <p class="col-span-full text-center text-gray-500 py-10">
-          Starting out? Add products to see them here!
-        </p>
-      {% endfor %}
-    </div>
+      </div>
+    </section>
 
-    <div class="mt-8 text-center">
-      <a
-        href="{% url 'search_products' %}"
-        class="inline-flex items-center justify-center bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-full shadow-sm hover:bg-gray-50 transition text-sm font-extrabold"
-      >
-        Browse More Products
-      </a>
-    </div>
-  </section>
-
+  {% endwith %}
 </div>
+
+<!-- Toasts -->
+<div id="toastHost" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
 
 <style>
   .hide-scrollbar::-webkit-scrollbar { display: none; }
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
+
+<script>
+(function () {
+  // -------------------------------
+  // CSRF (cookie)
+  // -------------------------------
+  function getCookie(name) {
+    const v = `; ${document.cookie}`;
+    const parts = v.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+    return "";
+  }
+  const csrftoken = getCookie("csrftoken");
+
+  // -------------------------------
+  // Toasts
+  // -------------------------------
+  const toastHost = document.getElementById("toastHost");
+  function toast(msg, type) {
+    if (!toastHost) return;
+
+    const el = document.createElement("div");
+    const base = "px-4 py-3 rounded-2xl shadow-lg border text-sm font-semibold flex items-start gap-2";
+    const themes = {
+      success: "bg-emerald-50 border-emerald-200 text-emerald-900",
+      info: "bg-blue-50 border-blue-200 text-blue-900",
+      warn: "bg-amber-50 border-amber-200 text-amber-900",
+      error: "bg-red-50 border-red-200 text-red-900",
+    };
+    el.className = base + " " + (themes[type || "info"] || themes.info);
+    el.innerHTML = `<span class="mt-[1px]">${type === "success" ? "✅" : type === "warn" ? "⚠️" : type === "error" ? "❌" : "ℹ️"}</span>
+                    <div class="min-w-0">${msg}</div>`;
+    toastHost.appendChild(el);
+
+    setTimeout(() => {
+      el.style.opacity = "0";
+      el.style.transform = "translateY(-6px)";
+      el.style.transition = "all .25s ease";
+      setTimeout(() => el.remove(), 250);
+    }, 2200);
+  }
+
+  // -------------------------------
+  // Cart count UI
+  // -------------------------------
+  let cartCount = Number(document.getElementById("cartCountValue")?.value || 0);
+
+  function updateCartBadges() {
+    document.querySelectorAll("[data-cart-count]").forEach((n) => {
+      n.textContent = String(cartCount);
+    });
+    document.querySelectorAll("[data-cart-count-wrap]").forEach((wrap) => {
+      if (cartCount > 0) wrap.classList.remove("hidden");
+      else wrap.classList.add("hidden");
+    });
+
+    // If your base.html already has a badge id, we update it too (safe no-op if missing)
+    const baseBadge = document.getElementById("cart-count-badge");
+    if (baseBadge) baseBadge.textContent = String(cartCount);
+  }
+
+  // -------------------------------
+  // Network helpers
+  // -------------------------------
+  function isLoginRedirect(response) {
+    // When not logged in, Django typically redirects to login page.
+    // response.redirected will be true, and URL usually contains "login".
+    return (response && response.redirected && /login/i.test(response.url || ""));
+  }
+
+  async function postForm(url, formData) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": csrftoken,
+        "X-Requested-With": "XMLHttpRequest",
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+      },
+      body: new URLSearchParams(formData).toString(),
+      credentials: "same-origin",
+    });
+    return res;
+  }
+
+  function setBtnBusy(btn, busy) {
+    if (!btn) return;
+    btn.disabled = !!busy;
+    btn.classList.toggle("opacity-60", !!busy);
+    btn.classList.toggle("cursor-not-allowed", !!busy);
+    btn.dataset.busy = busy ? "1" : "0";
+  }
+
+  // -------------------------------
+  // Add to Cart (no refresh)
+  // -------------------------------
+  async function handleAddToCart(btn) {
+    if (!btn || btn.dataset.busy === "1") return;
+
+    const url = btn.dataset.addUrl;
+    const name = btn.dataset.productName || "Item";
+    const stock = Number(btn.dataset.stock || 0);
+
+    if (!url) return;
+    if (stock <= 0) {
+      toast("Out of stock.", "warn");
+      return;
+    }
+
+    setBtnBusy(btn, true);
+
+    try {
+      const res = await postForm(url, {
+        qty: "1",
+        next: window.location.pathname + window.location.search + window.location.hash,
+      });
+
+      if (isLoginRedirect(res)) {
+        window.location.href = res.url;
+        return;
+      }
+
+      // Optimistic UI: increment badge (server is source of truth, but this avoids refresh)
+      cartCount = Math.max(0, cartCount + 1);
+      updateCartBadges();
+      toast(`Added “${name}” to cart.`, "success");
+    } catch (e) {
+      toast("Could not add to cart. Please try again.", "error");
+    } finally {
+      setBtnBusy(btn, false);
+    }
+  }
+
+  // -------------------------------
+  // Wishlist toggle (no refresh)
+  // -------------------------------
+  async function handleWishlist(btn) {
+    if (!btn || btn.dataset.busy === "1") return;
+
+    const url = btn.dataset.wishlistUrl;
+    const name = btn.dataset.productName || "Item";
+    if (!url) return;
+
+    setBtnBusy(btn, true);
+
+    try {
+      // toggle_wishlist redirects to wishlist page, but fetch won't navigate the browser.
+      const res = await postForm(url, {});
+
+      if (isLoginRedirect(res)) {
+        window.location.href = res.url;
+        return;
+      }
+
+      // Toggle UI state locally
+      const wasIn = btn.dataset.inWishlist === "1";
+      const nowIn = !wasIn;
+      btn.dataset.inWishlist = nowIn ? "1" : "0";
+      btn.setAttribute("aria-pressed", nowIn ? "true" : "false");
+
+      // Update icon if present
+      const icon = btn.querySelector(".js-wishlist-icon");
+      if (icon) icon.textContent = nowIn ? "❤️" : "🤍";
+
+      // If this was the mobile row button (text), update its label
+      if (!icon && btn.textContent) {
+        btn.textContent = nowIn ? "Saved ❤️" : "Wishlist 🤍";
+      }
+
+      toast(nowIn ? `Saved “${name}”.` : `Removed “${name}”.`, "info");
+    } catch (e) {
+      toast("Wishlist update failed. Please try again.", "error");
+    } finally {
+      setBtnBusy(btn, false);
+    }
+  }
+
+  // -------------------------------
+  // Event delegation
+  // -------------------------------
+  document.addEventListener("click", function (e) {
+    const addBtn = e.target.closest(".js-add-to-cart");
+    if (addBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleAddToCart(addBtn);
+      return;
+    }
+
+    const wishBtn = e.target.closest(".js-wishlist");
+    if (wishBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleWishlist(wishBtn);
+      return;
+    }
+  });
+
+  updateCartBadges();
+})();
+</script>
 {% endblock %}
