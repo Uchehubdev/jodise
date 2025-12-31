@@ -131,10 +131,10 @@
           <!-- Found -->
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-            <!-- Left: Status & timeline -->
+            <!-- Left -->
             <div class="lg:col-span-8 space-y-4">
 
-              <!-- Summary card -->
+              <!-- Summary -->
               <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 sm:p-6">
                 <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div class="min-w-0">
@@ -189,7 +189,6 @@
                       <p class="text-sm font-extrabold text-gray-900 mb-3">Order timeline</p>
 
                       <div class="grid grid-cols-5 gap-2 text-center">
-                        {% comment %} helpers: mark active if reached {% endcomment %}
                         <div class="rounded-2xl border px-2 py-3 text-xs font-bold
                           {% if s == 'pending' or s == 'paid' or s == 'processing' or s == 'shipped' or s == 'completed' %}border-emerald-200 bg-emerald-50 text-emerald-800{% else %}border-gray-200 bg-gray-50 text-gray-500{% endif %}">
                           🧾<div class="mt-1">Pending</div>
@@ -225,42 +224,44 @@
                   {% endwith %}
                 {% endif %}
 
-                <!-- Shipment (Store model) -->
-                {% if order and order.shipments.all %}
-                  {% with sh=order.shipments.all|last %}
-                    <div class="mt-6">
-                      <p class="text-sm font-extrabold text-gray-900 mb-2">Shipment</p>
-                      <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                          <div class="text-sm text-gray-700">
-                            <span class="font-extrabold text-gray-900">Carrier:</span>
-                            {{ sh.carrier|default:"—" }}
+                <!-- ✅ Shipment (SAFE: no |last on queryset) -->
+                {% if order %}
+                  {% with sh=order.shipments.last %}
+                    {% if sh %}
+                      <div class="mt-6">
+                        <p class="text-sm font-extrabold text-gray-900 mb-2">Shipment</p>
+                        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                          <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="text-sm text-gray-700">
+                              <span class="font-extrabold text-gray-900">Carrier:</span>
+                              {{ sh.carrier|default:"—" }}
+                            </div>
+                            <div class="text-sm text-gray-700">
+                              <span class="font-extrabold text-gray-900">Status:</span>
+                              {{ sh.status|default:"—"|title }}
+                            </div>
                           </div>
-                          <div class="text-sm text-gray-700">
-                            <span class="font-extrabold text-gray-900">Status:</span>
-                            {{ sh.status|default:"—"|title }}
+
+                          <div class="mt-2 text-sm text-gray-700">
+                            <span class="font-extrabold text-gray-900">Tracking number:</span>
+                            {{ sh.tracking_number|default:"—" }}
                           </div>
-                        </div>
 
-                        <div class="mt-2 text-sm text-gray-700">
-                          <span class="font-extrabold text-gray-900">Tracking number:</span>
-                          {{ sh.tracking_number|default:"—" }}
-                        </div>
-
-                        <div class="mt-2 text-xs text-gray-500">
-                          {% if sh.estimated_delivery %}
-                            Estimated delivery: <span class="font-bold text-gray-700">{{ sh.estimated_delivery|date:"M d, Y g:i A" }}</span>
-                          {% endif %}
-                          {% if sh.delivered_at %}
-                            • Delivered: <span class="font-bold text-gray-700">{{ sh.delivered_at|date:"M d, Y g:i A" }}</span>
-                          {% endif %}
+                          <div class="mt-2 text-xs text-gray-500">
+                            {% if sh.estimated_delivery %}
+                              Estimated delivery: <span class="font-bold text-gray-700">{{ sh.estimated_delivery|date:"M d, Y g:i A" }}</span>
+                            {% endif %}
+                            {% if sh.delivered_at %}
+                              • Delivered: <span class="font-bold text-gray-700">{{ sh.delivered_at|date:"M d, Y g:i A" }}</span>
+                            {% endif %}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    {% endif %}
                   {% endwith %}
                 {% endif %}
 
-                <!-- Delivery app (if present) -->
+                <!-- Delivery app -->
                 {% if delivery %}
                   <div class="mt-6">
                     <p class="text-sm font-extrabold text-gray-900 mb-2">Delivery updates</p>
@@ -304,7 +305,7 @@
                 {% endif %}
               </div>
 
-              <!-- Items (safe) -->
+              <!-- Items -->
               {% if order and order.items.all %}
                 <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                   <div class="px-5 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -348,10 +349,8 @@
               {% endif %}
             </div>
 
-            <!-- Right: Order details / help -->
+            <!-- Right -->
             <aside class="lg:col-span-4 space-y-4">
-
-              <!-- Order details -->
               <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 sm:p-6 lg:sticky lg:top-24">
                 <h3 class="text-base font-extrabold text-gray-900">Details</h3>
 
@@ -396,22 +395,6 @@
                       <span class="text-gray-900 font-extrabold">Total</span>
                       <span class="text-lg font-extrabold text-emerald-700">{{ order.total|default:"0" }}</span>
                     </div>
-
-                    {% if request.user.is_authenticated and order.buyer_id == request.user.id %}
-                      <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm">
-                        <p class="font-extrabold text-emerald-900">✅ You’re viewing your own order</p>
-                        <p class="text-xs text-emerald-800 mt-1">
-                          Full details are visible because you’re logged in.
-                        </p>
-                      </div>
-                    {% else %}
-                      <div class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm">
-                        <p class="font-extrabold text-gray-900">🔒 Privacy protected</p>
-                        <p class="text-xs text-gray-600 mt-1">
-                          Some personal details are hidden on public tracking pages.
-                        </p>
-                      </div>
-                    {% endif %}
                   {% else %}
                     <div class="text-sm text-gray-600">
                       Order details not available, but delivery tracking may still show updates.
@@ -431,23 +414,12 @@
                 </div>
               </div>
 
-              <!-- Help -->
               <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 sm:p-6">
                 <h3 class="text-base font-extrabold text-gray-900">Need help?</h3>
                 <p class="mt-2 text-sm text-gray-600">
                   If your tracking is stuck for too long, contact support with your tracking number.
                 </p>
-
-                <div class="mt-4 space-y-2 text-sm">
-                  <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                    <p class="font-extrabold text-gray-900">What’s next?</p>
-                    <p class="text-xs text-gray-600 mt-1">
-                      When your order is shipped, you’ll see “In transit” and delivery events will start appearing.
-                    </p>
-                  </div>
-                </div>
               </div>
-
             </aside>
 
           </div>
@@ -462,9 +434,6 @@
 
 <script>
 (function () {
-  // --------------------
-  // Toasts
-  // --------------------
   const toastHost = document.getElementById("toastHost");
   function toast(msg, type) {
     if (!toastHost) return;
@@ -488,9 +457,6 @@
     }, 2200);
   }
 
-  // --------------------
-  // Copy tracking
-  // --------------------
   document.addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-copy-tracking]");
     if (!btn) return;
@@ -503,9 +469,6 @@
     }
   });
 
-  // --------------------
-  // Live refresh (no full page reload)
-  // --------------------
   const result = document.getElementById("trackingResult");
   const btnRefresh = document.getElementById("btnRefresh");
   const btnAuto = document.getElementById("btnAuto");
@@ -517,7 +480,6 @@
     const url = result.getAttribute("data-refresh-url");
     if (!url) return;
 
-    // small busy state
     if (btnRefresh) {
       btnRefresh.disabled = true;
       btnRefresh.classList.add("opacity-60");
@@ -526,12 +488,12 @@
 
     try {
       const res = await fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" }, credentials: "same-origin" });
+      if (!res.ok) throw new Error("Bad response");
       const html = await res.text();
       const doc = new DOMParser().parseFromString(html, "text/html");
       const updated = doc.getElementById("trackingResult");
       if (updated && result) {
         result.innerHTML = updated.innerHTML;
-        // re-set refresh url if it changed
         const newUrl = updated.getAttribute("data-refresh-url");
         if (newUrl) result.setAttribute("data-refresh-url", newUrl);
         toast("Tracking updated.", "info");
@@ -557,11 +519,6 @@
 
   if (btnRefresh) btnRefresh.addEventListener("click", refreshTracking);
   if (btnAuto) btnAuto.addEventListener("click", () => setAuto(!auto));
-
-  // Auto-enable if a tracking number exists (gentle)
-  if (result && result.getAttribute("data-refresh-url")) {
-    // keep OFF by default; user can enable.
-  }
 })();
 </script>
 {% endblock %}

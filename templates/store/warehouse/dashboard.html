@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Warehouse Dashboard | Jodise{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Warehouse Dashboard</h1>
+        <p class="text-sm text-gray-600 mt-1">Track consolidated shipments and receive seller packages.</p>
+      </div>
+
+      <form method="GET" class="flex gap-2">
+        <input name="q" value="{{ q }}" placeholder="Search tracking no / reference..."
+               class="w-64 max-w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white">
+        <select name="status" class="rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white">
+          <option value="all" {% if status == "all" %}selected{% endif %}>All ({{ counts.all|intcomma }})</option>
+          <option value="awaiting_sellers" {% if status == "awaiting_sellers" %}selected{% endif %}>
+            Awaiting Sellers ({{ counts.awaiting_sellers|intcomma }})
+          </option>
+          <option value="packing" {% if status == "packing" %}selected{% endif %}>Packing ({{ counts.packing|intcomma }})</option>
+          <option value="pending" {% if status == "pending" %}selected{% endif %}>Pending Pickup ({{ counts.pending|intcomma }})</option>
+          <option value="in_transit" {% if status == "in_transit" %}selected{% endif %}>In Transit ({{ counts.in_transit|intcomma }})</option>
+          <option value="delivered" {% if status == "delivered" %}selected{% endif %}>Delivered ({{ counts.delivered|intcomma }})</option>
+          <option value="failed" {% if status == "failed" %}selected{% endif %}>Failed ({{ counts.failed|intcomma }})</option>
+        </select>
+        <button class="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900">Apply</button>
+      </form>
+    </div>
+
+    <div class="mt-6 rounded-2xl bg-white border border-gray-200 overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+        <p class="font-semibold text-gray-900">Shipments</p>
+        <p class="text-xs text-gray-500">Showing {{ shipments|length }} records</p>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-gray-50 text-gray-600">
+            <tr>
+              <th class="px-4 py-3 text-left">Tracking</th>
+              <th class="px-4 py-3 text-left">Buyer</th>
+              <th class="px-4 py-3 text-left">Status</th>
+              <th class="px-4 py-3 text-left">Carrier</th>
+              <th class="px-4 py-3 text-left">Updated</th>
+              <th class="px-4 py-3 text-left">Action</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-gray-100">
+            {% for sh in shipments %}
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 font-semibold text-gray-900">
+                {{ sh.order.tracking_no }}
+              </td>
+              <td class="px-4 py-3 text-gray-700">
+                {% if sh.order.buyer %}{{ sh.order.buyer.email }}{% else %}-{% endif %}
+              </td>
+              <td class="px-4 py-3">
+                <span class="inline-flex rounded-full border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-700">
+                  {{ sh.get_status_display }}
+                </span>
+              </td>
+              <td class="px-4 py-3 text-gray-700">{{ sh.carrier|default:"-" }}</td>
+              <td class="px-4 py-3 text-gray-500">{{ sh.updated_at|naturaltime }}</td>
+              <td class="px-4 py-3">
+                <a href="{% url 'warehouse_order_detail' sh.order.tracking_no %}"
+                   class="rounded-xl bg-black px-3 py-2 text-xs font-semibold text-white hover:bg-gray-900">
+                  Open
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="px-4 py-10 text-center text-gray-500">No shipments found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+{% endblock %}

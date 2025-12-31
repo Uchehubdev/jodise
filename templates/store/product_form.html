@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}
+{% if edit_mode %}Edit Product{% else %}Add Product{% endif %} | Seller Central
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-10 px-4">
+    <div class="max-w-4xl mx-auto">
+        <!-- Breadcrumb -->
+        <nav class="flex items-center text-sm text-gray-500 mb-6">
+            <a href="{% url 'seller_dashboard' %}" class="hover:text-amber-500 transition">Dashboard</a>
+            <span class="mx-2">/</span>
+            <span class="text-gray-900 font-semibold">{% if edit_mode %}Edit {{ product.name }}{% else %}New Product{%
+                endif %}</span>
+        </nav>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <!-- Header -->
+            <div class="px-8 py-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">
+                        {% if edit_mode %}✏️ Edit Product{% else %}📦 Add New Product{% endif %}
+                    </h1>
+                    <p class="text-gray-500 text-sm mt-1">
+                        {% if edit_mode %}Update details for this product.{% else %}Fill in the details to list a new
+                        item.{% endif %}
+                    </p>
+                </div>
+                {% if edit_mode %}
+                <div class="flex gap-3">
+                    <a href="{% url 'upload_product_image' product.id %}"
+                        class="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl font-semibold hover:bg-blue-100 transition">
+                        📷 Manage Images
+                    </a>
+                    <a href="{{ product.get_absolute_url }}" target="_blank"
+                        class="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl font-semibold hover:bg-gray-200 transition">
+                        👁️ View Live
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Form -->
+            <form method="POST" enctype="multipart/form-data" class="px-8 py-8 space-y-8">
+                {% csrf_token %}
+
+                <!-- General Info -->
+                <section>
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <span
+                            class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-sm">1</span>
+                        Basic Information
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Product Name</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.name.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                            {{ form.category }}
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Price (₦)</label>
+                            {{ form.price }}
+                            {% if form.price.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.price.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </section>
+
+                <hr class="border-gray-100">
+
+                <!-- Details -->
+                <section>
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <span
+                            class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-sm">2</span>
+                        Details & Stock
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                            {{ form.description }}
+                            <p class="text-xs text-gray-400 mt-2">Write a compelling description to attract buyers.</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Stock Quantity</label>
+                            {{ form.stock }}
+                        </div>
+                    </div>
+                </section>
+
+                <hr class="border-gray-100">
+
+                <!-- Settings -->
+                <section>
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <span
+                            class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-sm">3</span>
+                        Visibility
+                    </h3>
+                    <div class="space-y-4">
+                        <label
+                            class="flex items-center gap-3 p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition">
+                            {{ form.is_active }}
+                            <div>
+                                <span class="block font-semibold text-gray-900">Active Listing</span>
+                                <span class="text-sm text-gray-500">Product is visible to customers in the store.</span>
+                            </div>
+                        </label>
+
+                        <label
+                            class="flex items-center gap-3 p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition">
+                            {{ form.is_featured }}
+                            <div>
+                                <span class="block font-semibold text-gray-900">Featured Product</span>
+                                <span class="text-sm text-gray-500">Highlight this product on your store profile (if
+                                    applicable).</span>
+                            </div>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Actions -->
+                <div class="flex items-center justify-end gap-4 pt-6 border-t border-gray-100">
+                    <a href="{% url 'seller_dashboard' %}"
+                        class="px-6 py-3 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition">
+                        Cancel
+                    </a>
+                    <button type="submit"
+                        class="px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 hover:-translate-y-0.5 transition transform">
+                        {% if edit_mode %}Save Changes{% else %}Create Product{% endif %}
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

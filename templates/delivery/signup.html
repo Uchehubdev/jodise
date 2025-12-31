@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Become a Delivery Partner | Jodise{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+        <div class="text-center">
+            <span class="text-4xl">🚚</span>
+            <h2 class="mt-4 text-3xl font-extrabold text-gray-900">Delivery Partner</h2>
+            <p class="mt-2 text-sm text-gray-600">
+                Join our logistics network and start earning by delivering orders.
+            </p>
+        </div>
+
+        <form class="mt-8 space-y-6" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="rounded-md shadow-sm space-y-4">
+                {% for field in form %}
+                <div>
+                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        {{ field.label }}
+                    </label>
+                    <div class="mt-1">
+                        {{ field|add_class:"appearance-none rounded-xl relative block w-full px-3 py-3 border
+                        border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-amber-500
+                        focus:border-amber-500 focus:z-10 sm:text-sm" }}
+                    </div>
+                    {% if field.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div>
+                <button type="submit"
+                    class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 shadow-lg transform transition hover:-translate-y-0.5">
+                    Sign Up
+                </button>
+            </div>
+
+            <div class="text-center text-sm text-gray-500">
+                Already have an account? <a href="{% url 'login' %}"
+                    class="font-medium text-amber-600 hover:text-amber-500">Log in</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,257 +1,334 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load widget_tweaks %}
 
 {% block title %}Create Account | Jodise{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-  <div class="sm:mx-auto sm:w-full sm:max-w-4xl">
-
-    <div class="bg-white shadow-xl rounded-2xl overflow-hidden flex flex-col md:flex-row">
-
-      <!-- Left Panel: Branding -->
-      <div class="bg-indigo-600 md:w-5/12 p-8 flex flex-col justify-center items-center text-white text-center">
-        <a href="/">
-          <img src="https://cdn-icons-png.flaticon.com/512/679/679720.png" alt="Jodise"
-            class="w-32 mb-6 drop-shadow-md">
+<div class="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-10">
+  <div class="w-full max-w-xl">
+    <div class="bg-white border border-gray-200 shadow-sm rounded-2xl overflow-hidden">
+      <!-- Header -->
+      <div class="px-6 sm:px-8 pt-8 pb-6 text-center">
+        <a href="/" class="inline-flex items-center justify-center gap-3">
+          <img src="https://cdn-icons-png.flaticon.com/512/679/679720.png" alt="Jodise" class="w-10 h-10">
+          <span class="text-xl font-extrabold text-gray-900">Jodise</span>
         </a>
-        <h2 class="text-3xl font-extrabold mb-4">Join Jodise</h2>
-        <p class="text-indigo-100 text-lg mb-8">Start buying and selling in minutes. Experience the new standard of
-          e-commerce.</p>
-
-        <div class="space-y-4 text-sm font-medium text-indigo-200">
-          <div class="flex items-center justify-center gap-2">
-            <span>🛡️</span> Secure Payments
-          </div>
-          <div class="flex items-center justify-center gap-2">
-            <span>⚡</span> Fast Delivery
-          </div>
-          <div class="flex items-center justify-center gap-2">
-            <span>🌍</span> Global Marketplace
-          </div>
-        </div>
+        <h1 class="mt-4 text-2xl sm:text-3xl font-extrabold text-gray-900">Create your account</h1>
+        <p class="mt-2 text-sm text-gray-600">
+          Already have an account?
+          <a href="{% url 'login' %}" class="font-bold text-indigo-600 hover:text-indigo-700">Log in</a>
+        </p>
       </div>
 
-      <!-- Right Panel: Form -->
-      <div class="md:w-7/12 p-8 md:p-12">
-        <div class="text-center md:text-left mb-6">
-          <h2 class="text-2xl font-bold text-gray-900">Create Account</h2>
-          <p class="text-sm text-gray-500 mt-1">Already have an account? <a href="{% url 'login' %}"
-              class="text-indigo-600 font-medium hover:underline">Log in</a></p>
-        </div>
-
+      <div class="px-6 sm:px-8 pb-8">
         <!-- Messages -->
         {% if messages %}
-        <div class="mb-6">
-          {% for message in messages %}
-          <div
-            class="p-3 mb-2 rounded text-sm text-white {% if message.tags == 'success' %}bg-green-600{% else %}bg-red-500{% endif %}">
-            {{ message }}
+          <div class="mb-5 space-y-2">
+            {% for message in messages %}
+              <div class="rounded-xl border px-4 py-3 text-sm font-semibold
+                {% if message.tags == 'success' %}
+                  border-emerald-200 bg-emerald-50 text-emerald-900
+                {% else %}
+                  border-red-200 bg-red-50 text-red-900
+                {% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
           </div>
-          {% endfor %}
-        </div>
+        {% endif %}
+
+        {% if form.non_field_errors %}
+          <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-900">
+            {{ form.non_field_errors.as_text }}
+          </div>
         {% endif %}
 
         <form method="POST" id="registerForm" class="space-y-5">
           {% csrf_token %}
 
-          {% if form.non_field_errors %}
-          <div class="p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded">
-            {{ form.non_field_errors.as_text }}
-          </div>
-          {% endif %}
-
+          <!-- Email -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-            {{ form.email|add_class:"block w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-indigo-500
-            focus:border-indigo-500 sm:text-sm" }}
-            <p class="text-red-500 text-xs mt-1">{{ form.email.errors|striptags }}</p>
+            <label class="block text-sm font-bold text-gray-800 mb-1">Email</label>
+            {{ form.email|add_class:"w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"|attr:"placeholder:you@example.com" }}
+            {% if form.email.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ form.email.errors|striptags }}</p>{% endif %}
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Names -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-              {{ form.first_name|add_class:"block w-full px-4 py-3 rounded-lg border border-gray-300
-              focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
-              <p class="text-red-500 text-xs mt-1">{{ form.first_name.errors|striptags }}</p>
+              <label class="block text-sm font-bold text-gray-800 mb-1">First name</label>
+              {{ form.first_name|add_class:"w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"|attr:"placeholder:Emmanuel" }}
+              {% if form.first_name.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ form.first_name.errors|striptags }}</p>{% endif %}
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-              {{ form.last_name|add_class:"block w-full px-4 py-3 rounded-lg border border-gray-300
-              focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
-              <p class="text-red-500 text-xs mt-1">{{ form.last_name.errors|striptags }}</p>
+              <label class="block text-sm font-bold text-gray-800 mb-1">Last name</label>
+              {{ form.last_name|add_class:"w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"|attr:"placeholder:Eze" }}
+              {% if form.last_name.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ form.last_name.errors|striptags }}</p>{% endif %}
             </div>
           </div>
 
-          <!-- Phone OTP Section -->
+          <!-- Phone + OTP -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-            <div class="flex gap-2">
-              <input type="tel" id="id_phone" name="phone" placeholder="+234..."
-                class="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-              <button type="button" id="sendOtpBtn" onclick="sendOTP()"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm whitespace-nowrap">
-                Send OTP
-              </button>
-            </div>
-            <p class="text-red-500 text-xs mt-1">{{ form.phone.errors|striptags }}</p>
-          </div>
+            <label class="block text-sm font-bold text-gray-800 mb-1">Phone</label>
 
-          <!-- Hidden OTP Verify -->
-          <div id="otpSection" class="hidden bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-            <label class="block text-sm font-bold text-yellow-800 mb-2">🔐 Enter Verification Code</label>
             <div class="flex gap-2">
-              <input type="text" id="otp" placeholder="123456" maxlength="6"
-                class="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:ring-yellow-500 focus:border-yellow-500 tracking-widest text-center text-lg font-mono">
-              <button type="button" id="verifyBtn" onclick="verifyOTP()"
-                class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-sm transition">
-                Verify
+              <div class="flex-1">
+                {{ form.phone|add_class:"w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"|attr:"type:tel"|attr:"id:id_phone"|attr:"placeholder:+234..." }}
+              </div>
+              <button type="button" id="sendOtpBtn"
+                class="shrink-0 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed">
+                Send code
               </button>
             </div>
-            <p class="text-xs text-yellow-600 mt-2">Code sent to your phone. Valid for 5 minutes.</p>
+
+            {% if form.phone.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ form.phone.errors|striptags }}</p>{% endif %}
+
+            <!-- OTP box -->
+            <div id="otpSection" class="hidden mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-sm font-extrabold text-amber-900">Verify phone</p>
+                <span id="verifiedBadge" class="hidden text-xs font-extrabold text-emerald-700">Verified ✅</span>
+              </div>
+
+              <div class="mt-2 flex gap-2">
+                <input type="text" id="otp" inputmode="numeric" maxlength="6" placeholder="123456"
+                  class="flex-1 rounded-xl border border-amber-200 bg-white px-4 py-3 text-center text-base font-mono tracking-widest
+                         focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400" />
+                <button type="button" id="verifyBtn"
+                  class="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-extrabold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed">
+                  Verify
+                </button>
+              </div>
+
+              <p class="mt-2 text-xs font-semibold text-amber-800">
+                Code expires in a few minutes. If it fails, resend.
+              </p>
+            </div>
+
+            <p id="otpHint" class="mt-2 text-xs text-gray-500">We’ll send a short code to confirm your number.</p>
           </div>
 
           <!-- Passwords -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div class="relative">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              {{ form.password1|add_class:"block w-full px-4 py-3 rounded-lg border border-gray-300
-              focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
-              <div class="absolute top-[34px] right-3 cursor-pointer text-gray-400 text-sm"
-                onclick="togglePassword('{{ form.password1.id_for_label }}', this)">Show</div>
-              <p class="text-red-500 text-xs mt-1">{{ form.password1.errors|striptags }}</p>
+              <label class="block text-sm font-bold text-gray-800 mb-1">Password</label>
+              {{ form.password1|add_class:"w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm pr-16 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" }}
+              <button type="button" class="jsTogglePw absolute right-3 top-[36px] text-xs font-extrabold text-gray-500 hover:text-gray-800"
+                data-target="{{ form.password1.id_for_label }}">Show</button>
+              {% if form.password1.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ form.password1.errors|striptags }}</p>{% endif %}
             </div>
+
             <div class="relative">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Confirm</label>
-              {{ form.password2|add_class:"block w-full px-4 py-3 rounded-lg border border-gray-300
-              focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
-              <div class="absolute top-[34px] right-3 cursor-pointer text-gray-400 text-sm"
-                onclick="togglePassword('{{ form.password2.id_for_label }}', this)">Show</div>
-              <p class="text-red-500 text-xs mt-1">{{ form.password2.errors|striptags }}</p>
+              <label class="block text-sm font-bold text-gray-800 mb-1">Confirm</label>
+              {{ form.password2|add_class:"w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm pr-16 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" }}
+              <button type="button" class="jsTogglePw absolute right-3 top-[36px] text-xs font-extrabold text-gray-500 hover:text-gray-800"
+                data-target="{{ form.password2.id_for_label }}">Show</button>
+              {% if form.password2.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ form.password2.errors|striptags }}</p>{% endif %}
             </div>
           </div>
 
-          <div class="pt-2">
-            <button type="submit" id="registerBtn"
-              class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition transform hover:scale-[1.01]">
-              Create Account
-            </button>
-            <p class="text-xs text-gray-500 mt-4 text-center">
-              By registering, you agree to our <a href="#" class="underline">Terms</a> and <a href="#"
-                class="underline">Privacy Policy</a>.
-            </p>
-          </div>
+          <!-- Submit -->
+          <button type="submit" id="registerBtn"
+            class="w-full rounded-xl bg-gray-900 px-4 py-3 text-sm font-extrabold text-white hover:bg-gray-800">
+            Create account
+          </button>
 
+          <p class="text-center text-xs text-gray-500">
+            By creating an account, you agree to our <a href="#" class="underline font-semibold">Terms</a> and <a href="#" class="underline font-semibold">Privacy Policy</a>.
+          </p>
         </form>
       </div>
     </div>
+
+    <!-- tiny toast -->
+    <div id="toastHost" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
   </div>
 </div>
 
-<script>
-  function togglePassword(fieldId, el) {
-    const input = document.getElementById(fieldId);
-    if (input.type === 'password') {
-      input.type = 'text';
-      el.innerText = 'Hide';
-    } else {
-      input.type = 'password';
-      el.innerText = 'Show';
-    }
-  }
-</script>
-
-<!-- ========================= -->
-<!-- Phone Input & OTP Scripts -->
-<!-- ========================= -->
+<!-- intl-tel-input -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/css/intlTelInput.min.css">
 <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/intlTelInput.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/utils.js"></script>
 
 <script>
+(function () {
+  // -----------------------
+  // Helpers
+  // -----------------------
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+    return "";
+  }
+
+  const toastHost = document.getElementById("toastHost");
+  function toast(msg, type) {
+    if (!toastHost) return;
+    const el = document.createElement("div");
+    const base = "px-4 py-3 rounded-xl shadow-lg border text-sm font-semibold flex items-start gap-2";
+    const themes = {
+      success: "border-emerald-200 text-emerald-900 bg-emerald-50",
+      warn: "border-amber-200 text-amber-900 bg-amber-50",
+      error: "border-red-200 text-red-900 bg-red-50",
+      info: "border-gray-200 text-gray-900 bg-white",
+    };
+    el.className = base + " " + (themes[type || "info"] || themes.info);
+    el.innerHTML = `<span class="mt-[1px]">${type==="success"?"✅":type==="warn"?"⚠️":type==="error"?"❌":"ℹ️"}</span><div>${msg}</div>`;
+    toastHost.appendChild(el);
+    setTimeout(() => { el.style.opacity="0"; el.style.transform="translateY(-6px)"; el.style.transition="all .25s ease"; setTimeout(()=>el.remove(), 250); }, 2200);
+  }
+
+  // -----------------------
+  // Password toggle
+  // -----------------------
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".jsTogglePw");
+    if (!btn) return;
+    const targetId = btn.getAttribute("data-target");
+    const input = document.getElementById(targetId);
+    if (!input) return;
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    btn.textContent = show ? "Hide" : "Show";
+  });
+
+  // -----------------------
+  // Phone (intl-tel-input)
+  // -----------------------
+  const phoneInput = document.getElementById("id_phone");
+  const registerForm = document.getElementById("registerForm");
+  let iti = null;
+  let phoneVerified = false;
+
   async function getUserCountryCode() {
     try {
       const res = await fetch("https://ipapi.co/json/");
       const data = await res.json();
-      return data.country_code || "NG";
+      return (data.country_code || "NG").toLowerCase();
     } catch {
-      return "NG";
+      return "ng";
     }
   }
 
-  async function initPhoneInput() {
-    const phoneInput = document.getElementById("id_phone");
-    const userCountry = await getUserCountryCode();
-
-    const iti = window.intlTelInput(phoneInput, {
-      initialCountry: userCountry.toLowerCase(),
+  async function initPhone() {
+    if (!phoneInput) return;
+    const cc = await getUserCountryCode();
+    iti = window.intlTelInput(phoneInput, {
+      initialCountry: cc,
       nationalMode: false,
       separateDialCode: false,
       utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/utils.js"
     });
+  }
 
-    document.getElementById("registerForm").addEventListener("submit", function () {
-      phoneInput.value = iti.getNumber();
+  // Always submit phone in E.164
+  if (registerForm) {
+    registerForm.addEventListener("submit", (e) => {
+      if (!phoneVerified) {
+        e.preventDefault();
+        toast("Please verify your phone number before creating account.", "warn");
+        document.getElementById("otpSection")?.classList.remove("hidden");
+        return;
+      }
+      if (iti && phoneInput) phoneInput.value = iti.getNumber();
     });
   }
 
-  function sendOTP() {
-    const phone = document.getElementById("id_phone").value.trim();
-    if (!phone) return alert("Please enter a valid phone number first.");
+  // -----------------------
+  // OTP actions
+  // -----------------------
+  const sendBtn = document.getElementById("sendOtpBtn");
+  const verifyBtn = document.getElementById("verifyBtn");
+  const otpSection = document.getElementById("otpSection");
+  const otpInput = document.getElementById("otp");
+  const verifiedBadge = document.getElementById("verifiedBadge");
 
-    document.getElementById("sendOtpBtn").disabled = true;
-    document.getElementById("sendOtpBtn").innerText = "Sending...";
+  async function sendOTP() {
+    if (!phoneInput) return;
+    const phone = (iti ? iti.getNumber() : phoneInput.value).trim();
+    if (!phone) return toast("Enter a valid phone number.", "warn");
 
-    fetch("{% url 'send_otp_ajax' %}", {
-      method: "POST",
-      headers: {
-        "X-CSRFToken": "{{ csrf_token }}",
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: `phone=${encodeURIComponent(phone)}`
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "ok") {
-          alert("✅ OTP sent to your phone.");
-          document.getElementById("otpSection").classList.remove("hidden");
-        } else {
-          alert("❌ Failed to send OTP: " + data.message);
-        }
-      })
-      .finally(() => {
-        document.getElementById("sendOtpBtn").disabled = false;
-        document.getElementById("sendOtpBtn").innerText = "Send OTP";
+    sendBtn.disabled = true;
+    sendBtn.textContent = "Sending...";
+
+    try {
+      const res = await fetch("{% url 'send_otp_ajax' %}", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": getCookie("csrftoken"),
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Requested-With": "XMLHttpRequest"
+        },
+        body: `phone=${encodeURIComponent(phone)}`
       });
+      const data = await res.json();
+      if (data.status === "ok") {
+        otpSection.classList.remove("hidden");
+        toast("OTP sent to your phone.", "success");
+        otpInput?.focus();
+      } else {
+        toast(data.message || "Failed to send OTP.", "error");
+      }
+    } catch (e) {
+      toast("Network error. Try again.", "error");
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = "Send code";
+    }
   }
 
-  function verifyOTP() {
-    const phone = document.getElementById("id_phone").value.trim();
-    const otp = document.getElementById("otp").value.trim();
-    if (!otp) return alert("Enter your OTP.");
+  async function verifyOTP() {
+    const phone = (iti ? iti.getNumber() : phoneInput.value).trim();
+    const otp = (otpInput?.value || "").trim();
+    if (!otp) return toast("Enter the 6-digit code.", "warn");
 
-    fetch("{% url 'verify_otp_ajax' %}", {
-      method: "POST",
-      headers: {
-        "X-CSRFToken": "{{ csrf_token }}",
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: `phone=${encodeURIComponent(phone)}&otp=${encodeURIComponent(otp)}`
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "verified") {
-          alert("✅ Phone verified successfully!");
-          document.getElementById("otp").setAttribute("readonly", true);
-          document.getElementById("verifyBtn").disabled = true;
-          document.getElementById("verifyBtn").innerText = "Verified ✅";
-          document.getElementById("id_phone").readOnly = true;
-        } else {
-          alert("❌ Invalid or expired OTP. Try again.");
-        }
+    verifyBtn.disabled = true;
+    verifyBtn.textContent = "Verifying...";
+
+    try {
+      const res = await fetch("{% url 'verify_otp_ajax' %}", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": getCookie("csrftoken"),
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Requested-With": "XMLHttpRequest"
+        },
+        body: `phone=${encodeURIComponent(phone)}&otp=${encodeURIComponent(otp)}`
       });
+      const data = await res.json();
+
+      if (data.status === "verified") {
+        phoneVerified = true;
+        toast("Phone verified ✅", "success");
+        phoneInput.readOnly = true;
+        otpInput.readOnly = true;
+        verifyBtn.textContent = "Verified ✅";
+        verifiedBadge.classList.remove("hidden");
+      } else {
+        toast("Invalid or expired OTP. Resend and try again.", "error");
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = "Verify";
+      }
+    } catch (e) {
+      toast("Network error. Try again.", "error");
+      verifyBtn.disabled = false;
+      verifyBtn.textContent = "Verify";
+    }
   }
 
-  document.addEventListener("DOMContentLoaded", initPhoneInput);
+  sendBtn?.addEventListener("click", sendOTP);
+  verifyBtn?.addEventListener("click", verifyOTP);
+
+  // Allow pressing Enter on OTP
+  otpInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      verifyOTP();
+    }
+  });
+
+  document.addEventListener("DOMContentLoaded", initPhone);
+})();
 </script>
 {% endblock %}

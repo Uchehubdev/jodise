@@ -15,18 +15,30 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import F, Q, Sum
-from django.http import HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
+from django.db.models import Count, F, Q, Sum
+from django.http import (
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+    JsonResponse,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.db.models import Q, Prefetch
+from django.apps import apps
 
 from accounts.utils import paystack as paystack_api
 
-from .forms import ProductForm, ProductImageForm, PromoCodeForm, RefundRequestForm, ShipmentForm
+from .forms import (
+    ProductForm,
+    ProductImageForm,
+    PromoCodeForm,
+    RefundRequestForm,
+    ShipmentForm,
+)
 from .models import (
     Category,
     MarketplaceSetting,
@@ -41,14 +53,17 @@ from .models import (
     PayoutRequest,
 )
 
+# Optional forms/models/services (keep store app usable even if absent)
 try:
     from .forms import DeliveryAddressForm  # type: ignore
 except Exception:
     DeliveryAddressForm = None  # type: ignore
 
-logger = logging.getLogger(__name__)
+try:
+    from .models import SellerFulfillment  # type: ignore
+except Exception:
+    SellerFulfillment = None  # type: ignore
 
-# Optional services (keep store app usable even if these apps/modules are absent)
 try:
     from delivery.models import DeliveryOrder  # type: ignore
 except Exception:
@@ -70,6 +85,9 @@ except Exception:
     InvoiceService = None  # type: ignore
 
 
+logger = logging.getLogger(__name__)
+
+
 # ===========================================================
 # Utilities / Helpers
 # ===========================================================
@@ -81,6 +99,7 @@ def _config():
     try:
         return MarketplaceSetting.current()
     except Exception:
+
         class _Dummy:
             currency_symbol = "₦"
             active_gateway = "paystack"
@@ -122,9 +141,17 @@ def _is_verified_seller(user) -> bool:
     return bool(sp and getattr(sp, "is_verified", False))
 
 
+def _is_warehouse_staff(user) -> bool:
+    # tighten later to group/perm if you want
+    return bool(user and user.is_authenticated and getattr(user, "is_staff", False))
+
+
 def seller_required(view_func):
-    # Keeps your existing login_url behaviour.
     return login_required(user_passes_test(_is_verified_seller, login_url="login")(view_func))
+
+
+def warehouse_required(view_func):
+    return login_required(user_passes_test(_is_warehouse_staff, login_url="login")(view_func))
 
 
 def _get_pending_order(user) -> Order:
@@ -135,10 +162,8 @@ def _get_pending_order(user) -> Order:
 
 def _public_order_number(order: Order) -> str:
     """
-    Short, stable, non-ugly order number for users (email/UI).
-    Example: JOD-7D777EF2
-    - Deterministic per order
-    - Does not expose raw UUID
+    Short, stable, non-ugly public order number for UI/email.
+    Deterministic per order; does not expose raw UUID.
     """
     try:
         key = (getattr(settings, "SECRET_KEY", "") or "JODISE").encode("utf-8")
@@ -148,6 +173,72 @@ def _public_order_number(order: Order) -> str:
     except Exception:
         ref = str(getattr(order, "reference", "") or "").replace("-", "").upper()
         return f"JOD-{ref[:8] if ref else uuid.uuid4().hex[:8].upper()}"
+
+
+def _ensure_tracking_no(order: Order) -> str:
+    """
+    Ensure order.tracking_no exists, and respects the model max_length if present.
+    Uses a deterministic hash so it stays stable.
+    """
+    existing = (getattr(order, "tracking_no", None) or "").strip()
+    if existing:
+        return existing
+
+    # Default length
+    desired_len = 10
+    try:
+        f = order._meta.get_field("tracking_no")
+        desired_len = int(getattr(f, "max_length", desired_len) or desired_len)
+        desired_len = max(6, desired_len)
+    except Exception:
+        pass
+
+    try:
+        key = (getattr(settings, "SECRET_KEY", "") or "JODISE").encode("utf-8")
+        msg = f"{order.id}:{getattr(order,'reference','')}".encode("utf-8")
+        raw = hmac.new(key, msg, hashlib.sha256).hexdigest().upper()
+        token = raw[:desired_len]
+    except Exception:
+        token = uuid.uuid4().hex.upper()[:desired_len]
+
+    # try save (handle rare collision)
+    try:
+        order.tracking_no = token
+        order.save(update_fields=["tracking_no"])
+    except Exception:
+        token = uuid.uuid4().hex.upper()[:desired_len]
+        try:
+            order.tracking_no = token
+            order.save(update_fields=["tracking_no"])
+        except Exception:
+            pass
+
+    return token
+
+
+def _resolve_order_by_tracking_code(code: str) -> Optional[Order]:
+    """
+    Resolve an Order from tracking string:
+    1) tracking_no
+    2) if digits -> id
+    3) reference (legacy)
+    """
+    code = (code or "").strip()
+    if not code:
+        return None
+
+    order = Order.objects.filter(tracking_no=code).first()
+
+    if not order and code.isdigit():
+        try:
+            order = Order.objects.filter(id=int(code)).first()
+        except Exception:
+            order = None
+
+    if not order:
+        order = Order.objects.filter(reference=code).first()
+
+    return order
 
 
 def _canonical_product_url(product: Product) -> str:
@@ -189,10 +280,18 @@ def _recalc_order_amounts(order: Order) -> Order:
 
 
 def _create_or_update_seller_payouts(order: Order) -> None:
+    """
+    Idempotent per-order payout rebuild: compute totals per seller from items,
+    then upsert SellerPayout.
+    """
     cfg = _config()
     global_comm = getattr(cfg, "commission_rate", Decimal("0")) or Decimal("0")
 
-    for item in order.items.select_related("seller", "product", "seller__user").all():
+    # Recalculate each line using seller/global commission (if your model supports calculate_line)
+    seller_totals: Dict[int, Dict[str, Decimal]] = {}
+
+    items = order.items.select_related("seller", "product", "seller__user").all()
+    for item in items:
         if not item.product or not item.seller:
             continue
 
@@ -209,15 +308,31 @@ def _create_or_update_seller_payouts(order: Order) -> None:
         item.subtotal = item.unit_price * int(item.quantity or 1)
 
         try:
-            item.calculate_line(commission_rate=commission_rate)
+            item.calculate_line(commission_rate=commission_rate)  # type: ignore
         except Exception:
             logger.exception("OrderItem.calculate_line failed (non-fatal).")
 
         item.save(update_fields=["unit_price", "subtotal", "commission", "vat", "seller_earnings"])
 
+        sid = int(seller_user.id)
+        if sid not in seller_totals:
+            seller_totals[sid] = {
+                "total_earned": Decimal("0.00"),
+                "vat_deducted": Decimal("0.00"),
+                "commission_deducted": Decimal("0.00"),
+                "payable_amount": Decimal("0.00"),
+            }
+
+        seller_totals[sid]["total_earned"] += (item.subtotal or Decimal("0.00"))
+        seller_totals[sid]["vat_deducted"] += (getattr(item, "vat", None) or Decimal("0.00"))
+        seller_totals[sid]["commission_deducted"] += (getattr(item, "commission", None) or Decimal("0.00"))
+        seller_totals[sid]["payable_amount"] += (getattr(item, "seller_earnings", None) or Decimal("0.00"))
+
+    # Upsert payouts
+    for sid, totals in seller_totals.items():
         payout, _ = SellerPayout.objects.get_or_create(
             order=order,
-            seller=seller_user,
+            seller_id=sid,
             defaults={
                 "total_earned": Decimal("0.00"),
                 "vat_deducted": Decimal("0.00"),
@@ -225,11 +340,10 @@ def _create_or_update_seller_payouts(order: Order) -> None:
                 "payable_amount": Decimal("0.00"),
             },
         )
-
-        payout.total_earned = (payout.total_earned or Decimal("0.00")) + (item.subtotal or Decimal("0.00"))
-        payout.vat_deducted = (payout.vat_deducted or Decimal("0.00")) + (item.vat or Decimal("0.00"))
-        payout.commission_deducted = (payout.commission_deducted or Decimal("0.00")) + (item.commission or Decimal("0.00"))
-        payout.payable_amount = (payout.payable_amount or Decimal("0.00")) + (item.seller_earnings or Decimal("0.00"))
+        payout.total_earned = totals["total_earned"]
+        payout.vat_deducted = totals["vat_deducted"]
+        payout.commission_deducted = totals["commission_deducted"]
+        payout.payable_amount = totals["payable_amount"]
         payout.save(update_fields=["total_earned", "vat_deducted", "commission_deducted", "payable_amount"])
 
 
@@ -340,10 +454,7 @@ def _get_or_create_pending_payment(order: Order, amount: Decimal) -> PaymentTran
 
 def _extract_paystack_status_and_amount_kobo(data: Dict[str, Any]) -> Tuple[Optional[str], Optional[int], Optional[str]]:
     try:
-        if "data" in data and isinstance(data["data"], dict):
-            d = data["data"]
-        else:
-            d = data
+        d = data["data"] if ("data" in data and isinstance(data["data"], dict)) else data
         status = d.get("status")
         amount = d.get("amount")
         currency = d.get("currency")
@@ -356,17 +467,56 @@ def _extract_paystack_status_and_amount_kobo(data: Dict[str, Any]) -> Tuple[Opti
         return None, None, None
 
 
+def _create_seller_fulfillments(order: Order) -> None:
+    """
+    Ensures there is a SellerFulfillment row per seller for this order.
+    Keeps app working even if SellerFulfillment model is absent.
+    """
+    if not SellerFulfillment:
+        return
+
+    seller_ids = (
+        order.items.exclude(seller__isnull=True)
+        .values_list("seller_id", flat=True)
+        .distinct()
+    )
+    for sid in seller_ids:
+        try:
+            SellerFulfillment.objects.get_or_create(order=order, seller_id=sid)
+        except Exception:
+            logger.exception("SellerFulfillment get_or_create failed (non-fatal).")
+
+
+def _maybe_bump_order_status_on_progress(order: Order) -> None:
+    try:
+        if order.status == "paid" and SellerFulfillment:
+            progressed = SellerFulfillment.objects.filter(order=order).exclude(status__in=["pending", "paid"]).exists()
+            if progressed:
+                order.status = "processing"
+                order.save(update_fields=["status"])
+    except Exception:
+        pass
+
+
 def _fulfill_paid_order(order: Order, gateway: str, provider_reference: str, raw: Optional[Dict[str, Any]] = None) -> None:
+    """
+    Buyer paid -> reserve stock -> payouts + fulfillments -> delivery order -> notify.
+    Idempotent by order.status gate.
+    """
     if order.status in ("paid", "processing", "shipped", "completed"):
+        _ensure_tracking_no(order)
         return
 
     _recalc_order_amounts(order)
     _reserve_stock_or_fail(order)
 
+    _ensure_tracking_no(order)
+
     order.status = "paid"
     order.save(update_fields=["status"])
 
     _create_or_update_seller_payouts(order)
+    _create_seller_fulfillments(order)
     _create_delivery_order(order)
     _notify_order_paid(order)
 
@@ -460,7 +610,11 @@ def product_detail(request, slug, public_id):
             pass
 
     cfg = _config()
-    return render(request, "store/product_detail.html", {"product": product, "currency_symbol": getattr(cfg, "currency_symbol", "₦")})
+    return render(
+        request,
+        "store/product_detail.html",
+        {"product": product, "currency_symbol": getattr(cfg, "currency_symbol", "₦")},
+    )
 
 
 def product_detail_legacy(request, pk):
@@ -641,7 +795,7 @@ def view_wishlist(request):
 
 
 # ===========================================================
-# CHECKOUT (INLINE PAY - NO REDIRECT)
+# CHECKOUT
 # ===========================================================
 @login_required
 def checkout_view(request):
@@ -903,10 +1057,7 @@ def verify_payment(request):
 def order_success(request, reference):
     order = get_object_or_404(Order, reference=reference, buyer=request.user)
 
-    tracking_no = (getattr(order, "tracking_no", None) or "").strip()
-    if not tracking_no:
-        tracking_no = _public_order_number(order)
-
+    tracking_no = _ensure_tracking_no(order)
     track_url = reverse("track_order") + f"?tracking_number={tracking_no}"
 
     return render(
@@ -931,48 +1082,146 @@ def download_invoice(request, reference):
 
 
 # ===========================================================
+# BUYER: Orders list/detail
+# ===========================================================
+@login_required
+def buyer_orders(request):
+    cfg = _config()
+    qs = (
+        Order.objects.filter(buyer=request.user)
+        .exclude(status="pending")
+        .annotate(items_count=Sum("items__quantity"))
+        .order_by("-created_at")
+    )
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+    return render(request, "store/buyer_orders.html", {"orders": page_obj, "currency_symbol": getattr(cfg, "currency_symbol", "₦")})
+
+
+@login_required
+def buyer_order_detail(request, reference):
+    cfg = _config()
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items__product", "items__seller", "items__product__images"),
+        buyer=request.user,
+        reference=reference,
+    )
+    tracking_no = _ensure_tracking_no(order)
+    shipment = Shipment.objects.filter(order=order).first()
+    fulfillments = []
+    if SellerFulfillment:
+        fulfillments = list(SellerFulfillment.objects.filter(order=order).select_related("seller"))
+    return render(
+        request,
+        "store/buyer_order_detail.html",
+        {
+            "order": order,
+            "items": order.items.all(),
+            "shipment": shipment,
+            "fulfillments": fulfillments,
+            "tracking_no": tracking_no,
+            "currency_symbol": getattr(cfg, "currency_symbol", "₦"),
+        },
+    )
+
+
+# ===========================================================
 # TRACK ORDER (PUBLIC)
 # ===========================================================
+# def track_order(request):
+#     tracking_number = (request.GET.get("tracking_number") or "").strip()
+#     delivery = None
+#     order = None
+#     shipment = None
+
+#     if tracking_number:
+#         order = _resolve_order_by_tracking_code(tracking_number)
+#         if order:
+#             shipment = Shipment.objects.filter(order=order).first()
+
+#         if DeliveryOrder:
+#             try:
+#                 delivery = (
+#                     DeliveryOrder.objects.filter(Q(tracking_number=tracking_number) | Q(order_code=tracking_number))
+#                     .prefetch_related("tracking_history")
+#                     .first()
+#                 )
+
+#                 if not delivery and order:
+#                     legacy = str(getattr(order, "reference", "") or "")
+#                     oid = str(getattr(order, "id", "") or "")
+#                     delivery = (
+#                         DeliveryOrder.objects.filter(
+#                             Q(tracking_number=legacy) | Q(order_code=legacy) | Q(tracking_number=oid) | Q(order_code=oid)
+#                         )
+#                         .prefetch_related("tracking_history")
+#                         .first()
+#                     )
+#             except Exception:
+#                 delivery = None
+
+#     return render(
+#         request,
+#         "store/tracking.html",
+#         {"tracking_number": tracking_number, "delivery": delivery, "order": order, "shipment": shipment},
+#     )
+
+
 def track_order(request):
     tracking_number = (request.GET.get("tracking_number") or "").strip()
-    delivery = None
+
     order = None
+    delivery = None  # your template expects `delivery` variable
 
     if tracking_number:
-        # 1) tracking_no
-        order = Order.objects.filter(tracking_no=tracking_number).first()
+        # ---- Order lookup (by tracking_no OR reference OR shipment tracking number) ----
+        qs = (
+            Order.objects.filter(
+                Q(tracking_no__iexact=tracking_number)
+                | Q(reference__iexact=tracking_number)
+                | Q(shipments__tracking_number__iexact=tracking_number)
+            )
+            .select_related("buyer")
+            .prefetch_related(
+                "shipments",
+                Prefetch(
+                    "items",
+                    queryset=OrderItem.objects.select_related("product").prefetch_related("product__images"),
+                ),
+            )
+            .distinct()
+        )
+        order = qs.first()
 
-        # 2) digits -> try id
-        if not order and tracking_number.isdigit():
-            order = Order.objects.filter(id=int(tracking_number)).first()
+        # ---- Delivery lookup (optional: only if delivery app exists) ----
+        # Your template uses: delivery.status, delivery.updated_at, delivery.tracking_history.all
+        try:
+            DeliveryOrder = apps.get_model("delivery", "DeliveryOrder")
 
-        # 3) legacy reference
-        if not order:
-            order = Order.objects.filter(reference=tracking_number).first()
+            q = Q()
+            # Try common fields without breaking if they don’t exist
+            for field in ("order_code", "tracking_number", "tracking_no", "reference"):
+                try:
+                    DeliveryOrder._meta.get_field(field)
+                    q |= Q(**{f"{field}__iexact": tracking_number})
+                except Exception:
+                    pass
 
-        if DeliveryOrder:
-            try:
+            if q:
                 delivery = (
-                    DeliveryOrder.objects.filter(Q(tracking_number=tracking_number) | Q(order_code=tracking_number))
+                    DeliveryOrder.objects.filter(q)
                     .prefetch_related("tracking_history")
                     .first()
                 )
+        except Exception:
+            delivery = None
 
-                if not delivery and order:
-                    legacy = str(getattr(order, "reference", "") or "")
-                    oid = str(getattr(order, "id", "") or "")
-                    delivery = (
-                        DeliveryOrder.objects.filter(
-                            Q(tracking_number=legacy) | Q(order_code=legacy) | Q(tracking_number=oid) | Q(order_code=oid)
-                        )
-                        .prefetch_related("tracking_history")
-                        .first()
-                    )
-            except Exception:
-                delivery = None
-
-    return render(request, "store/tracking.html", {"tracking_number": tracking_number, "delivery": delivery, "order": order})
-
+    context = {
+        "tracking_number": tracking_number,
+        "order": order,
+        "delivery": delivery,
+    }
+    return render(request, "store/tracking.html", context)
 
 # ===========================================================
 # PAYSTACK WEBHOOK
@@ -1120,6 +1369,9 @@ def product_insights(request):
 # ===========================================================
 @seller_required
 def manage_shipment(request, order_id):
+    """
+    Seller-side shipment (optional legacy view): keeps compatibility.
+    """
     seller = request.user.seller_profile
     order = get_object_or_404(Order.objects.filter(items__seller=seller).distinct(), id=order_id)
 
@@ -1159,31 +1411,70 @@ def seller_dashboard(request):
     seller = request.user.seller_profile
 
     q = (request.GET.get("q") or "").strip()
-    status = (request.GET.get("status") or "all").strip()
+    status = (request.GET.get("status") or "all").strip()  # all | active | inactive
+    stock_filter = (request.GET.get("stock") or "all").strip()  # all | in | out | low
+    sort = (request.GET.get("sort") or "new").strip()
+    page = request.GET.get("page", 1)
 
-    products = Product.objects.filter(seller=seller).order_by("-created_at")
+    products = Product.objects.filter(seller=seller).select_related("category").prefetch_related("images")
+
     if q:
         products = products.filter(Q(name__icontains=q) | Q(sku__icontains=q))
+
     if status == "active":
         products = products.filter(is_active=True)
     elif status == "inactive":
         products = products.filter(is_active=False)
 
+    if stock_filter == "in":
+        products = products.filter(stock__gt=0)
+    elif stock_filter == "out":
+        products = products.filter(stock__lte=0)
+    elif stock_filter == "low":
+        products = products.filter(stock__lt=5)
+
+    sort_map = {
+        "new": "-created_at",
+        "old": "created_at",
+        "price_asc": "price",
+        "price_desc": "-price",
+        "stock_asc": "stock",
+        "stock_desc": "-stock",
+        "name_asc": "name",
+        "name_desc": "-name",
+    }
+    products = products.order_by(sort_map.get(sort, "-created_at"))
+
     paginator = Paginator(products, 20)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
+    page_obj = paginator.get_page(page)
+
+    base_products = Product.objects.filter(seller=seller)
+    products_count = base_products.count()
+    active_count = base_products.filter(is_active=True).count()
+    inactive_count = base_products.filter(is_active=False).count()
+    low_stock_count = base_products.filter(stock__lt=5).count()
+    out_of_stock_count = base_products.filter(stock__lte=0).count()
 
     payouts = SellerPayout.objects.filter(seller=request.user)
-    total_earnings = payouts.aggregate(Sum("payable_amount"))["payable_amount__sum"] or 0
-    total_orders = payouts.count()
+    total_earnings = payouts.aggregate(Sum("payable_amount"))["payable_amount__sum"] or Decimal("0.00")
+    total_orders = payouts.values("order_id").distinct().count()
 
-    last_month = timezone.now() - timedelta(days=30)
-    month_earnings = payouts.filter(created_at__gte=last_month).aggregate(Sum("payable_amount"))["payable_amount__sum"] or 0
+    last_30 = timezone.now() - timedelta(days=30)
+    month_earnings = payouts.filter(created_at__gte=last_30).aggregate(Sum("payable_amount"))["payable_amount__sum"] or Decimal("0.00")
 
-    pending_shipments = Order.objects.filter(status="paid", items__seller=seller).exclude(shipments__isnull=False).distinct().count()
-    low_stock_count = Product.objects.filter(seller=seller, stock__lt=5).count()
+    orders_to_fulfill = (
+        Order.objects.filter(items__seller=seller)
+        .exclude(status="pending")
+        .distinct()
+        .order_by("-created_at")[:8]
+    )
 
-    recent_payouts = payouts.order_by("-created_at")[:5]
-    recent_products = Product.objects.filter(seller=seller).order_by("-created_at")[:5]
+    pending_shipments = (
+        Order.objects.filter(status="paid", items__seller=seller)
+        .exclude(shipments__isnull=False)
+        .distinct()
+        .count()
+    )
 
     return render(
         request,
@@ -1193,17 +1484,69 @@ def seller_dashboard(request):
             "products": page_obj,
             "q": q,
             "status": status,
+            "stock": stock_filter,
+            "sort": sort,
+            "products_count": products_count,
+            "active_count": active_count,
+            "inactive_count": inactive_count,
+            "low_stock_count": low_stock_count,
+            "out_of_stock_count": out_of_stock_count,
             "total_earnings": total_earnings,
             "month_earnings": month_earnings,
             "total_orders": total_orders,
             "pending_shipments": pending_shipments,
-            "low_stock_count": low_stock_count,
-            "recent_payouts": recent_payouts,
-            "recent_products": recent_products,
-            "products_count": Product.objects.filter(seller=seller).count(),
+            "orders_to_fulfill": orders_to_fulfill,
             "currency_symbol": getattr(cfg, "currency_symbol", "₦"),
         },
     )
+
+
+@seller_required
+@require_POST
+def toggle_product_status(request, pk):
+    seller = request.user.seller_profile
+    product = get_object_or_404(Product, pk=pk, seller=seller)
+
+    product.is_active = not bool(product.is_active)
+    product.save(update_fields=["is_active"])
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "product_id": str(product.pk),
+            "is_active": bool(product.is_active),
+            "label": "Active" if product.is_active else "Inactive",
+        }
+    )
+
+
+@seller_required
+@require_POST
+def seller_products_bulk_action(request):
+    seller = request.user.seller_profile
+
+    action = (request.POST.get("action") or "").strip()
+    ids = request.POST.getlist("ids[]") or request.POST.getlist("ids")
+
+    if not action or not ids:
+        return JsonResponse({"ok": False, "error": "Missing action or product ids."}, status=400)
+
+    qs = Product.objects.filter(seller=seller, id__in=ids)
+
+    if action == "activate":
+        updated = qs.update(is_active=True)
+        return JsonResponse({"ok": True, "updated": int(updated), "action": "activate"})
+
+    if action == "deactivate":
+        updated = qs.update(is_active=False)
+        return JsonResponse({"ok": True, "updated": int(updated), "action": "deactivate"})
+
+    if action == "delete":
+        count = qs.count()
+        qs.delete()
+        return JsonResponse({"ok": True, "deleted": int(count), "action": "delete"})
+
+    return JsonResponse({"ok": False, "error": "Invalid action."}, status=400)
 
 
 @seller_required
@@ -1230,4 +1573,336 @@ def request_payout(request):
         request,
         "store/payout_history.html",
         {"balance": balance, "history": history, "seller": seller, "currency_symbol": getattr(cfg, "currency_symbol", "₦")},
+    )
+
+
+# ===========================================================
+# SELLER FULFILLMENT FLOW
+# ===========================================================
+@seller_required
+def seller_orders(request):
+    seller = request.user.seller_profile
+    q = (request.GET.get("q") or "").strip()
+    status = (request.GET.get("status") or "all").strip()
+    page = request.GET.get("page", 1)
+
+    orders = (
+        Order.objects.filter(items__seller=seller)
+        .exclude(status="pending")
+        .distinct()
+        .order_by("-created_at")
+    )
+
+    if q:
+        orders = orders.filter(
+            Q(reference__icontains=q)
+            | Q(tracking_no__icontains=q)
+            | Q(buyer__email__icontains=q)
+            | Q(buyer__first_name__icontains=q)
+            | Q(buyer__last_name__icontains=q)
+        )
+
+    if status != "all":
+        orders = orders.filter(status=status)
+
+    paginator = Paginator(orders, 20)
+    page_obj = paginator.get_page(page)
+
+    fulfill_map = {}
+    if SellerFulfillment:
+        fqs = SellerFulfillment.objects.filter(order__in=page_obj.object_list, seller_id=seller.id)
+        fulfill_map = {f.order_id: f for f in fqs}
+
+    return render(
+        request,
+        "store/seller_orders.html",
+        {
+            "orders": page_obj,
+            "q": q,
+            "status": status,
+            "fulfill_map": fulfill_map,
+        },
+    )
+
+
+@seller_required
+def seller_order_detail(request, order_id):
+    seller = request.user.seller_profile
+    order = get_object_or_404(
+        Order.objects.filter(items__seller=seller)
+        .distinct()
+        .select_related("buyer", "delivery_method")
+        .prefetch_related("items__product", "items__product__images"),
+        id=order_id,
+    )
+
+    items = order.items.filter(seller=seller).select_related("product")
+
+    fulfillment = None
+    if SellerFulfillment:
+        fulfillment = SellerFulfillment.objects.filter(order=order, seller_id=seller.id).first()
+
+    shipment = Shipment.objects.filter(order=order).first()
+
+    tracking_no = _ensure_tracking_no(order)
+
+    # Build a readable address safely
+    addr_parts = []
+    for field in ("address_line1", "address_line2", "delivery_address", "city", "state", "country", "postal_code"):
+        if hasattr(order, field):
+            v = (getattr(order, field) or "").strip()
+            if v:
+                addr_parts.append(v)
+    delivery_address_text = ", ".join(dict.fromkeys(addr_parts))
+
+    cfg = _config()
+
+    return render(
+        request,
+        "store/seller_order_detail.html",
+        {
+            "order": order,
+            "items": items,
+            "fulfillment": fulfillment,
+            "shipment": shipment,
+            "tracking_no": tracking_no,
+            "buyer_email": getattr(order.buyer, "email", ""),
+            "buyer_phone": getattr(order.buyer, "phone", ""),
+            "delivery_address_text": delivery_address_text,
+            "currency_symbol": getattr(cfg, "currency_symbol", "₦"),
+        },
+    )
+
+
+@seller_required
+def seller_update_fulfillment(request, order_id):
+    """
+    Seller updates their stage for an order:
+    - packed
+    - sent_to_warehouse (+ optional inbound carrier/tracking if your model has it)
+    - cancelled
+    """
+    seller = request.user.seller_profile
+    order = get_object_or_404(Order.objects.filter(items__seller=seller).distinct(), id=order_id)
+
+    if not SellerFulfillment:
+        messages.warning(request, "Seller fulfillment model not configured.")
+        return redirect("seller_order_detail", order_id=order_id)
+
+    fulfillment = SellerFulfillment.objects.filter(order=order, seller_id=seller.id).first()
+    if not fulfillment:
+        fulfillment = SellerFulfillment.objects.create(order=order, seller_id=seller.id)
+
+    if request.method != "POST":
+        return redirect("seller_order_detail", order_id=order_id)
+
+    new_status = (request.POST.get("status") or "").strip().lower()
+    allowed = {"packed", "sent_to_warehouse", "cancelled"}
+    if new_status not in allowed:
+        messages.error(request, "Invalid fulfillment status.")
+        return redirect("seller_order_detail", order_id=order_id)
+
+    current = (getattr(fulfillment, "status", "") or "").strip().lower()
+    if current in {"received_warehouse", "received_at_warehouse", "delivered"}:
+        messages.warning(request, "Warehouse already received this package. You can’t change status anymore.")
+        return redirect("seller_order_detail", order_id=order_id)
+
+    inbound_carrier = (request.POST.get("inbound_carrier") or "").strip()
+    inbound_tracking = (request.POST.get("inbound_tracking") or "").strip()
+
+    try:
+        now = timezone.now()
+        fulfillment.status = new_status
+
+        if new_status == "packed":
+            for f in ("packed_at", "packed_on"):
+                if hasattr(fulfillment, f):
+                    setattr(fulfillment, f, now)
+
+        if new_status == "sent_to_warehouse":
+            for f in ("sent_to_warehouse_at", "sent_at"):
+                if hasattr(fulfillment, f):
+                    setattr(fulfillment, f, now)
+
+            if inbound_carrier and hasattr(fulfillment, "inbound_carrier"):
+                fulfillment.inbound_carrier = inbound_carrier
+            if inbound_tracking and hasattr(fulfillment, "inbound_tracking"):
+                fulfillment.inbound_tracking = inbound_tracking
+
+        if hasattr(fulfillment, "updated_at"):
+            fulfillment.updated_at = now
+
+        fulfillment.save()
+
+        if order.status == "paid" and new_status in {"packed", "sent_to_warehouse"}:
+            order.status = "processing"
+            order.save(update_fields=["status"])
+
+        messages.success(request, f"Fulfillment updated: {new_status.replace('_', ' ').title()}")
+    except Exception:
+        logger.exception("Seller fulfillment update failed.")
+        messages.error(request, "Could not update fulfillment. Try again.")
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse(
+            {
+                "ok": True,
+                "status": getattr(fulfillment, "status", new_status),
+                "inbound_carrier": getattr(fulfillment, "inbound_carrier", ""),
+                "inbound_tracking": getattr(fulfillment, "inbound_tracking", ""),
+            }
+        )
+
+    return redirect("seller_order_detail", order_id=order_id)
+
+
+# ===========================================================
+# WAREHOUSE (Staff)
+# ===========================================================
+@warehouse_required
+def warehouse_dashboard(request):
+    incoming = []
+    if SellerFulfillment:
+        incoming = (
+            SellerFulfillment.objects.filter(status="sent_to_warehouse")
+            .select_related("order", "seller")
+            .order_by("created_at")
+        )
+
+    orders = (
+        Order.objects.exclude(status="pending")
+        .select_related("buyer")
+        .order_by("-created_at")[:30]
+    )
+
+    return render(
+        request,
+        "store/warehouse_dashboard.html",
+        {
+            "incoming": incoming,
+            "orders": orders,
+        },
+    )
+
+
+@warehouse_required
+def warehouse_order_detail(request, tracking_no):
+    order = _resolve_order_by_tracking_code(tracking_no)
+    if not order:
+        return HttpResponseBadRequest("Order not found.")
+
+    real_tracking = _ensure_tracking_no(order)
+    if real_tracking and real_tracking != tracking_no:
+        return redirect("warehouse_order_detail", tracking_no=real_tracking)
+
+    order = (
+        Order.objects.filter(id=order.id)
+        .prefetch_related("items__product", "items__seller", "items__product__images")
+        .select_related("buyer")
+        .first()
+    )
+    if not order:
+        return HttpResponseBadRequest("Order not found.")
+
+    items = order.items.select_related("product", "seller").all()
+
+    grouped: Dict[Any, list] = {}
+    for it in items:
+        grouped.setdefault(it.seller, []).append(it)
+
+    fulfillments = []
+    if SellerFulfillment:
+        fulfillments = list(SellerFulfillment.objects.filter(order=order).select_related("seller"))
+
+    shipment = Shipment.objects.filter(order=order).first()
+    tracking_no = _ensure_tracking_no(order)
+
+    return render(
+        request,
+        "store/warehouse_order_detail.html",
+        {
+            "order": order,
+            "items": items,
+            "grouped": grouped,
+            "fulfillments": fulfillments,
+            "shipment": shipment,
+            "tracking_no": tracking_no,
+        },
+    )
+
+
+@warehouse_required
+def warehouse_receive_seller_package(request, tracking_no, fulfillment_id):
+    order = _resolve_order_by_tracking_code(tracking_no)
+    if not order:
+        return HttpResponseBadRequest("Order not found.")
+
+    if not SellerFulfillment:
+        messages.warning(request, "Seller fulfillment model not configured.")
+        return redirect("warehouse_order_detail", tracking_no=_ensure_tracking_no(order))
+
+    ful = get_object_or_404(SellerFulfillment, id=fulfillment_id, order=order)
+
+    try:
+        ful.status = "received_warehouse"
+        now = timezone.now()
+
+        for f in ("received_at", "received_at_warehouse_at"):
+            if hasattr(ful, f):
+                setattr(ful, f, now)
+
+        if hasattr(ful, "received_by"):
+            ful.received_by = request.user
+
+        ful.save()
+
+        if order.status in ("paid",):
+            order.status = "processing"
+            order.save(update_fields=["status"])
+
+        messages.success(request, "✅ Marked as received in warehouse.")
+    except Exception:
+        logger.exception("warehouse_receive_seller_package failed.")
+        messages.error(request, "Could not mark received. Try again.")
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"ok": True, "status": getattr(ful, "status", "")})
+
+    return redirect("warehouse_order_detail", tracking_no=_ensure_tracking_no(order))
+
+
+@warehouse_required
+def warehouse_update_shipment(request, tracking_no):
+    order = _resolve_order_by_tracking_code(tracking_no)
+    if not order:
+        return HttpResponseBadRequest("Order not found.")
+
+    shipment, _ = Shipment.objects.get_or_create(order=order)
+
+    form = ShipmentForm(request.POST or None, instance=shipment)
+    if request.method == "POST" and form.is_valid():
+        sh = form.save()
+
+        _ensure_tracking_no(order)
+
+        try:
+            sh_status = (getattr(sh, "status", "") or "").lower()
+            if sh_status in ("shipped", "in_transit", "out_for_delivery"):
+                if order.status != "shipped":
+                    order.status = "shipped"
+                    order.save(update_fields=["status"])
+            if sh_status in ("delivered", "completed"):
+                if order.status != "completed":
+                    order.status = "completed"
+                    order.save(update_fields=["status"])
+        except Exception:
+            pass
+
+        messages.success(request, "Shipment updated.")
+        return redirect("warehouse_order_detail", tracking_no=_ensure_tracking_no(order))
+
+    return render(
+        request,
+        "store/warehouse_shipment_form.html",
+        {"form": form, "order": order, "shipment": shipment, "tracking_no": _ensure_tracking_no(order)},
     )
